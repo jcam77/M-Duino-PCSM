@@ -1,0 +1,40 @@
+{
+  "name": "mduino-pcsm-app",
+  "author": {
+    "name": "OpenAI Codex"
+  },
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm:vite\" \"npm:server\"",
+    "vite": "vite --open --config frontend/vite.config.js",
+    "server": "sh -c 'if [ -x ./.venv/bin/python ]; then ./.venv/bin/python backend/app.py; else python3 backend/app.py; fi'",
+    "build": "vite build --config frontend/vite.config.js",
+    "preview": "vite preview --config frontend/vite.config.js",
+    "lint": "eslint --config frontend/eslint.config.js frontend",
+    "test:frontend": "vitest run --config frontend/vitest.config.js"
+  },
+  "dependencies": {
+    "lucide-react": "^0.562.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.4.23",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "jsdom": "^28.1.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "vite": "^7.2.4",
+    "vitest": "^4.0.18"
+  }
+}

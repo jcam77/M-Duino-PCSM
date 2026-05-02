@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mduino-pcsm"
+version = "0.1.0"
+description = "Controller services and backend support for the M-Duino PCSM application."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "OpenAI Codex" }
+]
+dependencies = [
+  "pyserial>=3.5,<4.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["mduino_pcsm*"]
