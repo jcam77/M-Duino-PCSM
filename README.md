@@ -1,0 +1,2 @@
+# M-Duino-PCSM
+Parameter Control and Status Monitoring  Purpose Create a desktop/web-style control interface for the M-Duino test controller that allows the operator to:  change approved test parameters between runs monitor controller status view state transitions and event messages preserve the institute visual identity used in the DIME Toolbox The app is not intended to replace the M-Duino sequence logic.
