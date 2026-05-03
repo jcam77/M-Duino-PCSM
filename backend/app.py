@@ -2,16 +2,24 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from datetime import datetime
+import json
 import os
 from pathlib import Path
 import re
 import sys
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 from flask import Flask, jsonify, request
 
 ROOT = Path(__file__).resolve().parent.parent
 FIRMWARE_ROOT = ROOT / "M-DuinoScripts"
 RESEARCH_ROOTS = [ROOT / "Documentation", FIRMWARE_ROOT]
+OLLAMA_CANDIDATES = [
+    "http://10.211.55.2:11434",
+    "http://127.0.0.1:11434",
+    "http://localhost:11434",
+]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -191,6 +199,109 @@ def _research_response(question: str) -> dict:
     return {
         "answer": "\n".join(answer_lines),
         "sources": top_results,
+    }
+
+
+def _ollama_host_candidates() -> list[str]:
+    explicit = os.environ.get("OLLAMA_HOST", "").strip()
+    candidates: list[str] = []
+    if explicit:
+        candidates.append(explicit.rstrip("/"))
+    for candidate in OLLAMA_CANDIDATES:
+        if candidate not in candidates:
+            candidates.append(candidate)
+    return candidates
+
+
+def _ollama_request(method: str, url: str, payload: dict | None = None, timeout: float = 2.5) -> dict | list:
+    data = None
+    headers = {}
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    req = urllib_request.Request(url, data=data, headers=headers, method=method)
+    with urllib_request.urlopen(req, timeout=timeout) as response:
+        raw = response.read().decode("utf-8")
+    return json.loads(raw) if raw else {}
+
+
+def _resolve_ollama_host() -> str | None:
+    for host in _ollama_host_candidates():
+        try:
+            _ollama_request("GET", f"{host}/api/tags", timeout=1.5)
+            return host
+        except (urllib_error.URLError, TimeoutError, OSError, json.JSONDecodeError):
+            continue
+    return None
+
+
+def _ollama_models(host: str | None) -> list[str]:
+    if not host:
+        return []
+    try:
+        payload = _ollama_request("GET", f"{host}/api/tags", timeout=2.5)
+    except (urllib_error.URLError, TimeoutError, OSError, json.JSONDecodeError):
+        return []
+
+    models = payload.get("models", []) if isinstance(payload, dict) else []
+    names = [item.get("name", "") for item in models if isinstance(item, dict) and item.get("name")]
+    return names
+
+
+def _build_aira_context(question: str, sources: list[dict]) -> str:
+    context_blocks = []
+    for source in sources[:4]:
+        snippets = "\n".join(f"- {snippet}" for snippet in source.get("snippets", [])[:3])
+        context_blocks.append(f"Source: {source['path']}\n{snippets}")
+    if not context_blocks:
+        return f"Question: {question}"
+    return "\n\n".join(context_blocks)
+
+
+def _ollama_answer(question: str, sources: list[dict], model: str | None = None) -> dict | None:
+    host = _resolve_ollama_host()
+    if not host:
+        return None
+
+    models = _ollama_models(host)
+    selected_model = model or os.environ.get("OLLAMA_MODEL", "").strip() or (models[0] if models else "")
+    if not selected_model:
+        return None
+
+    prompt = (
+        "You are AiRA, a research assistant for the M-Duino PCSM project.\n"
+        "Answer using only the provided local repository context.\n"
+        "Be concise, practical, and explicit when you are uncertain.\n\n"
+        f"User question:\n{question}\n\n"
+        f"Local context:\n{_build_aira_context(question, sources)}"
+    )
+
+    try:
+        payload = _ollama_request(
+            "POST",
+            f"{host}/api/generate",
+            {
+                "model": selected_model,
+                "prompt": prompt,
+                "stream": False,
+            },
+            timeout=30.0,
+        )
+    except (urllib_error.URLError, TimeoutError, OSError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    answer = str(payload.get("response", "")).strip()
+    if not answer:
+        return None
+
+    return {
+        "mode": "ollama",
+        "host": host,
+        "model": selected_model,
+        "answer": answer,
     }
 
 
@@ -374,7 +485,17 @@ def aira_context():
         str(path.relative_to(ROOT)).replace("\\", "/")
         for path in _research_files()
     ]
-    return jsonify({"ok": True, "files": files})
+    host = _resolve_ollama_host()
+    models = _ollama_models(host)
+    return jsonify(
+        {
+            "ok": True,
+            "files": files,
+            "aiStatus": "online" if host and models else "local",
+            "ollamaHost": host,
+            "models": models,
+        }
+    )
 
 
 @app.route("/api/aira/query", methods=["POST"])
@@ -384,8 +505,21 @@ def aira_query():
     if not question:
         return jsonify({"ok": False, "message": "Please enter a question for AiRA."}), 400
 
-    response = _research_response(question)
-    return jsonify({"ok": True, **response})
+    local_response = _research_response(question)
+    ollama_response = _ollama_answer(question, local_response["sources"], payload.get("model"))
+    if ollama_response:
+        return jsonify(
+            {
+                "ok": True,
+                "answer": ollama_response["answer"],
+                "sources": local_response["sources"],
+                "mode": ollama_response["mode"],
+                "model": ollama_response["model"],
+                "ollamaHost": ollama_response["host"],
+            }
+        )
+
+    return jsonify({"ok": True, **local_response, "mode": "local", "model": None, "ollamaHost": None})
 
 
 if __name__ == "__main__":

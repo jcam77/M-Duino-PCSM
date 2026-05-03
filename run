@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP="${1:-}"
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+VENV_DIR="$ROOT_DIR/.venv"
+OS_NAME="$(uname -s 2>/dev/null || echo unknown)"
+
+if [[ -d "$VENV_DIR/bin" ]]; then
+  export PATH="$VENV_DIR/bin:$PATH"
+fi
+
+VERSION="$(git -C "$ROOT_DIR" describe --tags --always 2>/dev/null || echo "unknown")"
+BRANCH="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")"
+echo "M-Duino-PCSM version: $VERSION (branch: $BRANCH)"
+
+if [[ -z "$APP" ]]; then
+  echo "Usage: ./run <appName>"
+  echo "Examples:"
+  echo "  ./run mduino"
+  echo "  ./run pcsm"
+  echo "  ./run mduino-pcsm"
+  exit 1
+fi
+
+case "$APP" in
+  mduino|M-Duino|pcsm|PCSM|mduino-pcsm|M-Duino-PCSM)
+    cd "$ROOT_DIR"
+    case "$OS_NAME" in
+      Linux)
+        exec bash "$ROOT_DIR/Run-M-Duino-PCSM-LINUX.sh"
+        ;;
+      Darwin)
+        exec bash "$ROOT_DIR/Run-M-Duino-PCSM-MAC.command"
+        ;;
+      *)
+        npm run dev
+        ;;
+    esac
+    ;;
+  *)
+    echo "Unknown app: $APP"
+    echo "Supported: mduino, pcsm, mduino-pcsm"
+    exit 1
+    ;;
+esac

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BrainCircuit, FileText, RefreshCw, Send, ShieldAlert } from 'lucide-react';
+import { BrainCircuit, ChevronDown, FileText, RefreshCw, Send, ShieldAlert } from 'lucide-react';
 
 import { getBackendBaseUrl } from '../../utils/backendUrl';
 
@@ -43,6 +43,10 @@ function AiRAPage() {
   const [contextFiles, setContextFiles] = useState([]);
   const [status, setStatus] = useState({ type: 'info', text: 'Loading AiRA context…' });
   const [busy, setBusy] = useState(false);
+  const [aiMode, setAiMode] = useState('local');
+  const [models, setModels] = useState([]);
+  const [selectedModel, setSelectedModel] = useState('');
+  const [ollamaHost, setOllamaHost] = useState('');
 
   const quickPrompts = [
     'What does HOTWIRE_US control in the current workflow?',
@@ -57,7 +61,16 @@ function AiRAPage() {
       const data = await response.json();
       if (!data.ok) throw new Error(data.message || 'Unable to load AiRA context.');
       setContextFiles(data.files || []);
-      setStatus({ type: 'success', text: 'AiRA context loaded from documentation and firmware files.' });
+      setAiMode(data.aiStatus === 'online' ? 'ollama' : 'local');
+      setModels(data.models || []);
+      setSelectedModel((current) => current || data.models?.[0] || '');
+      setOllamaHost(data.ollamaHost || '');
+      setStatus({
+        type: 'success',
+        text: data.aiStatus === 'online'
+          ? `AiRA context loaded. Ollama available at ${data.ollamaHost}.`
+          : 'AiRA context loaded from documentation and firmware files.',
+      });
     } catch (error) {
       setStatus({ type: 'error', text: error.message });
     }
@@ -82,21 +95,28 @@ function AiRAPage() {
       const response = await fetch(`${apiBaseUrl}/api/aira/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: trimmed }),
+        body: JSON.stringify({ question: trimmed, model: selectedModel || undefined }),
       });
       const data = await response.json();
       if (!data.ok) throw new Error(data.message || 'AiRA could not answer that question.');
 
       setMessages((current) => [...current, { role: 'assistant', content: data.answer }]);
       setSources(data.sources || []);
-      setStatus({ type: 'success', text: 'AiRA returned grounded notes from the local repository context.' });
+      setAiMode(data.mode || 'local');
+      setOllamaHost(data.ollamaHost || '');
+      setStatus({
+        type: 'success',
+        text: data.mode === 'ollama'
+          ? `AiRA answered with model ${data.model} via ${data.ollamaHost}.`
+          : 'AiRA returned grounded notes from the local repository context.',
+      });
     } catch (error) {
       setMessages((current) => [...current, { role: 'assistant', content: `I hit a problem answering that: ${error.message}` }]);
       setStatus({ type: 'error', text: error.message });
     } finally {
       setBusy(false);
     }
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, selectedModel]);
 
   return (
     <div className="space-y-6">
@@ -122,14 +142,23 @@ function AiRAPage() {
                   <BrainCircuit size={16} />
                   Conversation
                 </div>
-                <button
-                  onClick={loadContext}
-                  disabled={busy}
-                  className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground hover:border-ring disabled:opacity-60"
-                >
-                  <RefreshCw size={14} />
-                  Reload Context
-                </button>
+                <div className="flex items-center gap-2">
+                  <div className={`rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-widest ${
+                    aiMode === 'ollama'
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                      : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                  }`}>
+                    {aiMode === 'ollama' ? 'AI Online' : 'Local Grounded'}
+                  </div>
+                  <button
+                    onClick={loadContext}
+                    disabled={busy}
+                    className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground hover:border-ring disabled:opacity-60"
+                  >
+                    <RefreshCw size={14} />
+                    Reload Context
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -147,6 +176,20 @@ function AiRAPage() {
                   placeholder="Ask about controller states, firmware versions, timing parameters, or project documentation..."
                 />
                 <div className="mt-3 flex flex-wrap items-center gap-3">
+                  {models.length ? (
+                    <label className="inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-background px-3 py-2 text-xs text-muted-foreground">
+                      <ChevronDown size={12} />
+                      <select
+                        value={selectedModel}
+                        onChange={(event) => setSelectedModel(event.target.value)}
+                        className="bg-transparent text-xs text-foreground outline-none"
+                      >
+                        {models.map((model) => (
+                          <option key={model} value={model}>{model}</option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
                   <button
                     onClick={() => askQuestion(question)}
                     disabled={busy || !question.trim()}
@@ -157,7 +200,9 @@ function AiRAPage() {
                   </button>
                   <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                     <ShieldAlert size={13} />
-                    Grounded in local docs and firmware only
+                    {aiMode === 'ollama' && ollamaHost
+                      ? `Using Ollama at ${ollamaHost}`
+                      : 'Grounded in local docs and firmware only'}
                   </div>
                 </div>
               </div>

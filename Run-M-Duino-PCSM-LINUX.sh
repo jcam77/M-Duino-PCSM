@@ -16,6 +16,7 @@ FRONTEND_HOST="${MDUINO_FRONTEND_HOST:-${MDUINO_DEFAULT_FRONTEND_HOST:-127.0.0.1
 FRONTEND_PORT="${MDUINO_FRONTEND_PORT:-${MDUINO_DEFAULT_FRONTEND_PORT:-5174}}"
 BACKEND_HOST="${MDUINO_BACKEND_HOST:-${MDUINO_DEFAULT_BACKEND_HOST:-127.0.0.1}}"
 BACKEND_PORT="${MDUINO_BACKEND_PORT:-${MDUINO_DEFAULT_BACKEND_PORT:-5001}}"
+OLLAMA_HOST="${OLLAMA_HOST:-http://10.211.55.2:11434}"
 
 cleanup_sidecar_files() {
   find "$REPO_ROOT" -type f -name '._*' -delete >/dev/null 2>&1 || true
@@ -191,6 +192,14 @@ start_app() {
   wait "$VITE_PID"
 }
 
+print_aira_status() {
+  if curl -fsS "${OLLAMA_HOST}/api/tags" >/dev/null 2>&1; then
+    echo "AiRA / feature tooling: ready"
+  else
+    echo "AiRA / feature tooling: local grounded mode"
+  fi
+}
+
 print_header
 seed_gui_path
 cleanup_sidecar_files
@@ -207,4 +216,5 @@ if [ "${#MISSING_ITEMS[@]}" -gt 0 ]; then
   exit 1
 fi
 
+print_aira_status
 start_app

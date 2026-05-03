@@ -7,6 +7,8 @@ import HomePage from '../features/home/HomePage';
 import WorkspacePage from '../features/workspace/WorkspacePage';
 import { getPublicUrl } from '../utils/assetUrl';
 
+/* global __APP_VERSION__, __LAST_UPDATED__ */
+
 function AppShell() {
   const [isLight, setIsLight] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -21,6 +23,24 @@ function AppShell() {
     document.documentElement.classList.toggle('light', isLight);
     window.localStorage.setItem('mduino-theme', isLight ? 'light' : 'dark');
   }, [isLight]);
+
+  const formatDate = (value) => {
+    if (!value) return 'Unknown';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(date);
+  };
+
+  const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.1.0';
+  const displayVersion = appVersion.replace(/\.0$/, '');
+  const hasUncommittedChanges = /-dirty$/.test(displayVersion);
+  const lastUpdatedRaw = typeof __LAST_UPDATED__ !== 'undefined' ? __LAST_UPDATED__ : '';
+  const effectiveLastUpdated = hasUncommittedChanges ? new Date().toISOString() : lastUpdatedRaw;
+  const lastUpdatedLabel = effectiveLastUpdated ? formatDate(effectiveLastUpdated) : 'Unknown';
 
   return (
     <div className="w-full min-h-screen bg-background text-foreground flex flex-col overflow-hidden">
@@ -156,6 +176,16 @@ function AppShell() {
           <WorkspacePage />
         )}
       </main>
+
+      <footer className="px-4 sm:px-6 lg:px-8 pb-6">
+        <div className="max-w-6xl mx-auto mt-1 flex flex-col md:flex-row md:items-center md:justify-between border-t border-sidebar-border/60 pt-4 text-[10px] text-muted-foreground">
+          <span>© 2026 M-Duino-PCSM. Controller supervision workspace.</span>
+          <span>Built for trigger-box monitoring, parameter control, firmware review, and AiRA research support.</span>
+          <span className="inline-block text-xs text-muted-foreground bg-card/70 rounded px-2 py-0.5 mt-1 md:mt-0 md:ml-4">
+            M-Duino-PCSM {displayVersion} &nbsp;|&nbsp; Last updated: {lastUpdatedLabel}
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }

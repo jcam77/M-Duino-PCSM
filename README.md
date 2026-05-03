@@ -33,27 +33,37 @@ It is not intended to:
 - `Controller Workspace`: connection controls, live status, parameter input, and event log
 - `Firmware Scripts`: read-only viewer for the `.ino` files inside `M-DuinoScripts`
 
-## Quick Start
+## 🚀 Quick Start
 
-### Prerequisites
+### ✅ Prerequisites
 
 - Python `3.10+`
 - `npm`
 - Node.js `18+`
 
-### Recommended Launchers
+### ▶️ Recommended Launchers
 
 Setup once:
 
-- Linux: [Setup-M-Duino-PCSM-LINUX.sh](/Volumes/Sim_Back_Up/M-Duino-PCSM/Setup-M-Duino-PCSM-LINUX.sh)
-- macOS: [Setup-M-Duino-PCSM-MAC.command](/Volumes/Sim_Back_Up/M-Duino-PCSM/Setup-M-Duino-PCSM-MAC.command)
-- Windows: [Setup-M-Duino-PCSM-WIN.bat](/Volumes/Sim_Back_Up/M-Duino-PCSM/Setup-M-Duino-PCSM-WIN.bat)
+- <img src="https://cdn.simpleicons.org/linux" alt="Linux" width="16" height="16"> Linux: [Setup-M-Duino-PCSM-LINUX.sh](/Volumes/Sim_Back_Up/M-Duino-PCSM/Setup-M-Duino-PCSM-LINUX.sh)
+- <img src="https://cdn.simpleicons.org/apple" alt="macOS" width="16" height="16"> macOS: [Setup-M-Duino-PCSM-MAC.command](/Volumes/Sim_Back_Up/M-Duino-PCSM/Setup-M-Duino-PCSM-MAC.command)
+- <img src="https://cdn.simpleicons.org/windows11" alt="Windows" width="16" height="16"> Windows: [Setup-M-Duino-PCSM-WIN.bat](/Volumes/Sim_Back_Up/M-Duino-PCSM/Setup-M-Duino-PCSM-WIN.bat)
 
 Then run:
 
-- Linux: [Run-M-Duino-PCSM-LINUX.sh](/Volumes/Sim_Back_Up/M-Duino-PCSM/Run-M-Duino-PCSM-LINUX.sh)
-- macOS: [Run-M-Duino-PCSM-MAC.command](/Volumes/Sim_Back_Up/M-Duino-PCSM/Run-M-Duino-PCSM-MAC.command)
-- Windows: [Run-M-Duino-PCSM-WIN.bat](/Volumes/Sim_Back_Up/M-Duino-PCSM/Run-M-Duino-PCSM-WIN.bat)
+- <img src="https://cdn.simpleicons.org/linux" alt="Linux" width="16" height="16"> Linux: [Run-M-Duino-PCSM-LINUX.sh](/Volumes/Sim_Back_Up/M-Duino-PCSM/Run-M-Duino-PCSM-LINUX.sh)
+- <img src="https://cdn.simpleicons.org/apple" alt="macOS" width="16" height="16"> macOS: [Run-M-Duino-PCSM-MAC.command](/Volumes/Sim_Back_Up/M-Duino-PCSM/Run-M-Duino-PCSM-MAC.command)
+- <img src="https://cdn.simpleicons.org/windows11" alt="Windows" width="16" height="16"> Windows: [Run-M-Duino-PCSM-WIN.bat](/Volumes/Sim_Back_Up/M-Duino-PCSM/Run-M-Duino-PCSM-WIN.bat)
+
+Unified launcher:
+
+- Linux/macOS: [run](/Volumes/Sim_Back_Up/M-Duino-PCSM/run)
+
+Example:
+
+```bash
+./run mduino
+```
 
 Default local app URL:
 
@@ -110,12 +120,13 @@ npm run vite -- --host 127.0.0.1 --port 5174 --strictPort
 npm run build
 ```
 
-## Architecture
+## 🏗️ Architecture
 
 ### Frontend
 
 - React + Vite browser app
 - single-shell navigation with `Home`, `Controller Workspace`, and `Firmware Scripts`
+- `AiRA` page for grounded repository questions and optional Ollama-backed responses
 - operator-facing parameter and status workspace
 
 Key files:
@@ -128,6 +139,7 @@ Key files:
 ### Backend
 
 - Flask API for controller state, parameters, and firmware file browsing
+- AiRA context and query endpoints
 - service abstraction for mock and serial backends
 
 Key backend files:
@@ -164,7 +176,13 @@ This repository uses git tags for releases.
 
 See [VERSIONING.md](/Volumes/Sim_Back_Up/M-Duino-PCSM/VERSIONING.md) for the branch workflow and tag naming rules.
 
-## Troubleshooting
+## 🤖 AiRA Notes
+
+- AiRA always works in grounded local mode using `Documentation/` and `M-DuinoScripts/`
+- If Ollama is reachable, AiRA can also answer with a local model and show the host/model used
+- The Linux launcher reports either `AiRA / feature tooling: ready` or `AiRA / feature tooling: local grounded mode`
+
+## 🛠️ Troubleshooting
 
 - If setup has not been run yet, use the matching `Setup-M-Duino-PCSM-*` launcher first.
 - If the browser app does not open automatically, run the `Run-M-Duino-PCSM-*` launcher again and open the printed URL manually.

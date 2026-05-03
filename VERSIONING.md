@@ -3,6 +3,7 @@
 This is the `M-Duino-PCSM` versioning workflow.
 
 The safe rule is:
+
 - develop on `CODEX-Updates`
 - release from `main`
 - create the release tag from `main`
@@ -19,11 +20,13 @@ This project currently does not use `package.json` or `npm version`.
 Instead, there are two version layers:
 
 1. Internal file revisions
+
 - Used in filenames such as `M-Duino-PCSM_Project_Brief_v000.md`
 - Used in firmware folders and files such as `M_Duino_v002/M_Duino_v002.ino`
 - These help track working revisions of documents, diagrams, and firmware snapshots
 
 2. Public release versions
+
 - Tracked with annotated Git tags on `main`
 - Use semantic versioning for releases:
   `MAJOR.MINOR.PATCH`
@@ -68,6 +71,7 @@ git push origin CODEX-Updates
 ```
 
 Important:
+
 - do not create the release tag from `CODEX-Updates`
 - do not make the public release from `CODEX-Updates`
 
@@ -76,12 +80,14 @@ Important:
 Use `_vNNN` style revisions for working artifacts stored in the repository.
 
 Examples already present in this repo:
+
 - `M-Duino-PCSM_Project_Brief_v000.md`
 - `Trigger_Box_Controller_Explanation_v000.md`
 - `trigger_box_sequence_diagram_v002.png`
 - `M_Duino_v002/M_Duino_v002.ino`
 
 Recommended rule:
+
 - use `_v000` for the first tracked revision
 - increase by one for each saved milestone: `_v001`, `_v002`, `_v003`
 - keep the filename and the internal reference aligned when both exist
@@ -94,10 +100,12 @@ trigger_box_sequence_diagram_v002.png -> trigger_box_sequence_diagram_v003.png
 ```
 
 Use internal file revision bumps when:
+
 - you want to preserve a prior milestone as a separate file
 - a document, diagram, or firmware snapshot has materially changed
 
 Do not confuse internal file revisions with public release tags:
+
 - `_v003` in a filename is not the same thing as release `0.3.0`
 - release tags must still be created from `main`
 
@@ -122,6 +130,7 @@ git restore .
 ```
 
 Why this matters:
+
 - if `git switch main` fails, you stay on the current branch
 - if you stay on `CODEX-Updates`, the release tag can be created from the wrong branch
 
@@ -154,6 +163,7 @@ git push origin main
 This is the step that moves the tested development work into the release branch.
 
 If there are merge conflicts:
+
 - resolve them first
 - complete the merge
 - push `main`
@@ -202,8 +212,8 @@ git branch --show-current
 git merge CODEX-Updates -m "Merge CODEX-Updates into main"
 git push origin main
 git branch --show-current
-git tag -a mduino-pcsm-v0.1.0 -m "mduino-pcsm-v0.1.0"
-git push origin mduino-pcsm-v0.1.0
+git tag -a mduino-pcsm-v0.1.1 -m "mduino-pcsm-v0.1.1"
+git push origin mduino-pcsm-v0.1.1
 git switch CODEX-Updates
 git merge main
 git push origin CODEX-Updates

@@ -5,13 +5,14 @@ import {
   Clock3,
   Code2,
   Cpu,
+  LayoutPanelTop,
+  Network,
   Radio,
+  ServerCog,
   ShieldAlert,
   SlidersHorizontal,
   TerminalSquare,
 } from 'lucide-react';
-
-/* global __APP_VERSION__, __LAST_UPDATED__ */
 
 function MetricTile({ value, label }) {
   return (
@@ -36,24 +37,6 @@ function FeatureCard({ icon, title, children }) {
 }
 
 function HomePage({ onOpenWorkspace, onOpenFirmware, onOpenAiRA }) {
-  const formatDate = (value) => {
-    if (!value) return 'Unknown';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return new Intl.DateTimeFormat('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }).format(date);
-  };
-
-  const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.1.0';
-  const displayVersion = appVersion.replace(/\.0$/, '');
-  const hasUncommittedChanges = /-dirty$/.test(displayVersion);
-  const lastUpdatedRaw = typeof __LAST_UPDATED__ !== 'undefined' ? __LAST_UPDATED__ : '';
-  const effectiveLastUpdated = hasUncommittedChanges ? new Date().toISOString() : lastUpdatedRaw;
-  const lastUpdatedLabel = effectiveLastUpdated ? formatDate(effectiveLastUpdated) : 'Unknown';
-
   return (
     <div className="w-full h-full overflow-y-auto scroll-smooth snap-y snap-mandatory">
       <section className="relative min-h-[84vh] flex items-center justify-center overflow-hidden px-4 sm:px-6 lg:px-8 pt-4 pb-12 snap-start">
@@ -176,13 +159,31 @@ function HomePage({ onOpenWorkspace, onOpenFirmware, onOpenAiRA }) {
         </div>
       </section>
 
-      <section className="px-4 sm:px-6 lg:px-8 pb-8">
-        <div className="max-w-6xl mx-auto mt-1 flex flex-col md:flex-row md:items-center md:justify-between border-t border-sidebar-border/60 pt-4 text-[10px] text-muted-foreground">
-          <span>© 2026 M-Duino-PCSM. Controller supervision workspace.</span>
-          <span>Built for trigger-box monitoring, parameter control, and firmware review.</span>
-          <span className="inline-block text-xs text-muted-foreground bg-card/70 rounded px-2 py-0.5 mt-1 md:mt-0 md:ml-4">
-            M-Duino-PCSM {displayVersion} &nbsp;|&nbsp; Last updated: {lastUpdatedLabel}
-          </span>
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card/20 snap-start">
+        <div className="max-w-[90rem] mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl sm:text-5xl font-bold mb-4">
+              Frontend And Backend Working Together
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              The browser interface, Flask API, and controller service layer are intentionally separated so the app stays clearer to maintain and easier to extend.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <FeatureCard icon={LayoutPanelTop} title="Frontend Shell">
+              React and Vite provide the browser workspace, top-right page actions, Home page, controller workspace, firmware view, and AiRA interface.
+            </FeatureCard>
+            <FeatureCard icon={ServerCog} title="Backend API">
+              Flask exposes controller endpoints, firmware file browsing, AiRA context routes, and the application bridge between UI events and Python services.
+            </FeatureCard>
+            <FeatureCard icon={Network} title="Controller Services">
+              The service layer handles mock and serial backends, parameter updates, state snapshots, validation messages, and port discovery logic.
+            </FeatureCard>
+            <FeatureCard icon={Code2} title="Repository Context">
+              Documentation and versioned firmware snapshots are kept local so the app can explain behavior, compare revisions, and ground AiRA responses in project files.
+            </FeatureCard>
+          </div>
         </div>
       </section>
     </div>
