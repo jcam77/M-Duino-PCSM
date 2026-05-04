@@ -73,9 +73,20 @@ check_command() {
   fi
 }
 
-check_node_packages() {
-  if ! node -e "require('rollup'); require.resolve('vite/package.json'); require.resolve('react/package.json'); require.resolve('react-dom/package.json')" >/dev/null 2>&1; then
-    add_missing "Frontend dependencies are incomplete for this machine: run Setup-M-Duino-PCSM-LINUX.sh"
+frontend_packages_ok() {
+  node -e "require.resolve('vite/package.json'); require.resolve('react/package.json'); require.resolve('react-dom/package.json')" >/dev/null 2>&1 \
+    && [ -x "$REPO_ROOT/node_modules/.bin/vite" ]
+}
+
+ensure_node_packages() {
+  if frontend_packages_ok; then
+    return
+  fi
+
+  echo ""
+  echo "Installing frontend dependencies..."
+  if ! npm install; then
+    add_missing "Frontend dependencies could not be installed automatically: run Setup-M-Duino-PCSM-LINUX.sh"
   fi
 }
 
@@ -207,8 +218,11 @@ check_command node
 check_command npm
 check_command curl
 resolve_python
-check_node_packages
 check_python_packages
+
+if [ "${#MISSING_ITEMS[@]}" -eq 0 ]; then
+  ensure_node_packages
+fi
 
 if [ "${#MISSING_ITEMS[@]}" -gt 0 ]; then
   print_missing_summary

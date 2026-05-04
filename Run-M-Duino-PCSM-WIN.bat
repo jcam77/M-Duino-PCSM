@@ -23,16 +23,32 @@ if not %errorlevel%==0 (
 )
 
 if not exist ".venv\Scripts\python.exe" (
-  echo Creating .venv...
-  %PYTHON_CMD% -m venv .venv
+  echo.
+  echo M-Duino-PCSM cannot start yet:
+  echo  - Missing local virtual environment: run Setup-M-Duino-PCSM-WIN.bat first
+  echo.
+  echo Recommended fix:
+  echo   Setup-M-Duino-PCSM-WIN.bat
+  exit /b 1
 )
 
 call ".venv\Scripts\activate.bat"
-echo Installing or repairing dependencies...
-python -m pip install --upgrade pip setuptools wheel
-python -m pip install --no-build-isolation -e .
-python -m pip install -r backend\requirements.txt
-if not exist "node_modules" npm install
+
+python -c "import flask, serial, mduino_pcsm" >nul 2>nul
+if not %errorlevel%==0 (
+  echo.
+  echo M-Duino-PCSM cannot start yet:
+  echo  - Python runtime packages are incomplete: run Setup-M-Duino-PCSM-WIN.bat
+  echo.
+  echo Recommended fix:
+  echo   Setup-M-Duino-PCSM-WIN.bat
+  exit /b 1
+)
+
+if not exist "node_modules\.bin\vite.cmd" (
+  echo Installing frontend dependencies...
+  npm install
+)
 
 echo Launching M-Duino-PCSM...
 npm run dev

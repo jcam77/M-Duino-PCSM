@@ -381,6 +381,26 @@ def build_document():
         document,
         "This naming style makes the timing easier to understand and reduces mistakes when adjusting values.",
     )
+    add_paragraph(document, "Why the reviewed script is better than the original on units")
+    add_paragraph(document, "The reviewed `M_Duino_v002.ino` is better than the original sketch in how it handles units.")
+    add_paragraph(document, "The original code used shorter names such as:")
+    add_bullet(document, "`dwell`")
+    add_bullet(document, "`Delay`")
+    add_paragraph(document, "Those names are compact, but they are much easier to misunderstand because the unit and physical meaning are not visible at the point of use.")
+    add_paragraph(document, "The reviewed code is clearer because names such as:")
+    add_bullet(document, "`sparkDwell_us`")
+    add_bullet(document, "`daqPulse_us`")
+    add_bullet(document, "`hotWireBurn_us`")
+    add_paragraph(document, "make the time unit explicit.")
+    add_paragraph(document, "This improves:")
+    add_bullet(document, "code readability")
+    add_bullet(document, "auditability")
+    add_bullet(document, "discussion with colleagues")
+    add_bullet(document, "safety when changing timing values")
+    add_paragraph(document, "Important nuance:")
+    add_bullet(document, "`M_Duino_v002.ino` is clearly better on unit clarity")
+    add_bullet(document, "but a few names still need physical interpretation in the documentation")
+    add_bullet(document, "the main example is `sparkDwell_us`, which should be understood as coil dwell / ignition-command time, not literal plasma duration at the spark plug")
 
     document.add_heading("4. Main Timing Variables", level=1)
     timing = document.add_table(rows=1, cols=4)
@@ -538,6 +558,7 @@ def build_document():
         "a proper state machine",
         "deliberate safety and lockout behavior",
         "a clearer explanation of how hot wires, coil dwell, ignition release, and DAQ interact",
+        "better timing-variable naming and unit visibility than the original sketch",
     ]:
         add_bullet(document, item)
 

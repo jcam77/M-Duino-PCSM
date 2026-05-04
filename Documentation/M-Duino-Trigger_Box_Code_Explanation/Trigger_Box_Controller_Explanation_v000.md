@@ -54,6 +54,38 @@ Examples:
 
 This naming style makes the timing easier to understand and reduces mistakes when adjusting values.
 
+### Why the reviewed script is better than the original on units
+
+The reviewed `M_Duino_v002.ino` is better than the original sketch in how it handles units.
+
+The original code used shorter names such as:
+
+- `dwell`
+- `Delay`
+
+Those names are compact, but they are much easier to misunderstand because the unit and physical meaning are not visible at the point of use.
+
+The reviewed code is clearer because names such as:
+
+- `sparkDwell_us`
+- `daqPulse_us`
+- `hotWireBurn_us`
+
+make the time unit explicit.
+
+This improves:
+
+- code readability
+- auditability
+- discussion with colleagues
+- safety when changing timing values
+
+Important nuance:
+
+- `M_Duino_v002.ino` is clearly better on unit clarity
+- but a few names still need physical interpretation in the documentation
+- the main example is `sparkDwell_us`, which should be understood as coil dwell / ignition-command time, not literal plasma duration at the spark plug
+
 ## 4. Main Timing Variables
 
 | Variable                   | Current value  | Unit         | Meaning                                                       |
@@ -181,3 +213,4 @@ This reviewed version keeps the same overall purpose as the original sketch, but
 - a proper state machine
 - deliberate safety and lockout behavior
 - a clearer explanation of how hot wires, coil dwell, ignition release, and DAQ interact
+- better timing-variable naming and unit visibility than the original sketch
