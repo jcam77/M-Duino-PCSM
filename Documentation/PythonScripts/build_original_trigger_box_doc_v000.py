@@ -11,9 +11,9 @@ from docx.shared import Inches, Pt, RGBColor
 from PIL import Image, ImageDraw, ImageFont
 
 
-ROOT = Path(__file__).resolve().parent
-DOCX_PATH = ROOT / "Original_Trigger_Box_Code_Explanation_v000.docx"
-FLOWCHART_PATH = ROOT / "original_trigger_box_expected_sequence_v000.png"
+ROOT = Path(__file__).resolve().parent.parent
+DOCX_PATH = ROOT / "M-Duino-Trigger_Box_Code_Explanation" / "Original_Trigger_Box_Code_Explanation_v000.docx"
+FLOWCHART_PATH = ROOT / "Diagrams" / "original_trigger_box_expected_sequence_v000.png"
 
 ACCENT = RGBColor(27, 76, 120)
 MUTED = RGBColor(90, 90, 90)
@@ -276,10 +276,10 @@ def build_document():
 
     meta = document.add_table(rows=4, cols=2)
     entries = [
-        ("Code file", "M-Duino/ArduinoCode/M-Duino_Original/M-Duino_Original.ino"),
+        ("Code file", "M-DuinoScripts/M-Duino_Original/M-Duino_Original.ino"),
         ("Document date", str(date.today())),
         ("Focus", "Explain what the original code appears to do and identify the main technical risks."),
-        ("Important note", "This document describes the original sketch, not the cleaned state-machine rewrite."),
+        ("Important note", "This document describes the original sketch, not the cleaned state-machine rewrite in M_Duino_v002.ino."),
     ]
     for r, (label, value) in enumerate(entries):
         set_cell_text(meta.cell(r, 0), label, bold=True)
@@ -289,11 +289,27 @@ def build_document():
     document.add_heading("1. Why This Document Exists", level=1)
     add_paragraph(document, "The original trigger-box sketch is short, but that brevity hides several important assumptions. The file contains almost no comments, several variable names do not show their units, and at least two lines treat a boolean flag as if it were a hardware output pin. This document explains the original code in words so that colleagues can understand what it seems intended to do and why it is risky to use without review.")
 
-    document.add_heading("2. What the Original Code Appears to Do", level=1)
+    document.add_heading("2. Code File Covered Here", level=1)
+    add_bullet(document, "M-DuinoScripts/M-Duino_Original/M-Duino_Original.ino")
+    add_paragraph(document, "Important note:")
+    add_bullet(document, "This document describes the original sketch only.")
+    add_bullet(document, "It does not describe the cleaned state-machine rewrite in `M_Duino_v002.ino`.")
+    add_bullet(document, "The original `.ino` file is the source of truth for the baseline implementation discussed here.")
+
+    document.add_heading("3. Relationship to the Later Reviewed Version", level=1)
+    add_paragraph(document, "This document describes the original baseline code that was later improved in the reviewed firmware.")
+    add_paragraph(document, "The later reviewed version is:")
+    add_bullet(document, "M-DuinoScripts/M_Duino_v002/M_Duino_v002.ino")
+    add_paragraph(document, "So the intended interpretation is:")
+    add_bullet(document, "this document explains the original implementation and its risks")
+    add_bullet(document, "the reviewed controller document explains the later improved version")
+    add_bullet(document, "the two documents should not be treated as describing the same firmware file")
+
+    document.add_heading("4. What the Original Code Appears to Do", level=1)
     add_paragraph(document, "The original sketch has two modes. When Mode is HIGH, it runs ConstSpark(), which repeatedly produces a spark pulse whenever Arm is active. When Mode is LOW, it runs HydrogenTest(), which appears intended to enforce an arming sequence, activate the hot-wire relays, fire the spark, issue a DAQ pulse, and then latch the system as fired until the operator resets it.")
     add_paragraph(document, "Although this intended sequence is visible by reading the code carefully, it is not written down anywhere in the original file. The next figure summarizes the expected behavior the code seems to be aiming for.")
 
-    document.add_heading("3. Expected Sequence from the Original Logic", level=1)
+    document.add_heading("5. Expected Sequence from the Original Logic", level=1)
     document.add_picture(str(FLOWCHART_PATH), width=Inches(6.6))
     cap = document.add_paragraph()
     cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -303,14 +319,14 @@ def build_document():
     run.font.size = Pt(9.5)
     run.font.color.rgb = MUTED
 
-    document.add_heading("4. Missing Comments and Hidden Assumptions", level=1)
+    document.add_heading("6. Missing Comments and Hidden Assumptions", level=1)
     add_bullet(document, "There are no top-level comments explaining the operating modes, safety assumptions, or intended firing sequence.")
     add_bullet(document, "Variables such as BurnTime, dwell, and Delay do not carry units in their names, so the reader must infer the units from delay() and delayMicroseconds().")
     add_bullet(document, "The code does not explain whether the inputs and outputs are active HIGH or active LOW.")
     add_bullet(document, "The code does not explain that the hot-wire outputs are assumed to drive relays or another external switching stage rather than the hot wire directly.")
     add_paragraph(document, "Because of these missing comments, different readers can misunderstand the same code in different ways. That is the main reason the cleaned rewrite adds comments, unit suffixes, and explicit state names.")
 
-    document.add_heading("5. Hidden Time Units in the Original Code", level=1)
+    document.add_heading("7. Hidden Time Units in the Original Code", level=1)
     add_paragraph(document, "The original code works with mixed time scales, but the units are hidden. The M-Duino does not know the time unit from the number alone. It knows the time unit from the function the number is passed into.")
 
     table = document.add_table(rows=1, cols=4)
@@ -328,7 +344,7 @@ def build_document():
             set_cell_text(cells[idx], value)
     style_table(table)
 
-    document.add_heading("6. Main Technical Issues in the Original Sketch", level=1)
+    document.add_heading("8. Main Technical Issues in the Original Sketch", level=1)
     issues = document.add_table(rows=1, cols=3)
     for idx, header in enumerate(["Issue", "Where it appears", "Why it matters"]):
         set_cell_text(issues.cell(0, idx), header, bold=True)
@@ -346,7 +362,7 @@ def build_document():
             set_cell_text(cells[idx], value)
     style_table(issues)
 
-    document.add_heading("7. Original Hydrogen-Test Logic in Words", level=1)
+    document.add_heading("9. Original Hydrogen-Test Logic in Words", level=1)
     add_number(document, "If both Trigger and Arm are LOW, the code clears Fired and Fail.")
     add_number(document, "If Trigger is HIGH while Arm is LOW, the code sets Fail = true.")
     add_number(document, "If Fail is false, Arm is HIGH, and Fired is false, the code sets Armed = true and turns on the ArmLight.")
@@ -356,20 +372,20 @@ def build_document():
     add_number(document, "The code sets Fired = true and then uses flag as an additional latch.")
     add_number(document, "After firing, the operator must release both Arm and Trigger to clear the Fired and Fail conditions.")
 
-    document.add_heading("8. Why the Original File Is Hard to Debug", level=1)
+    document.add_heading("10. Why the Original File Is Hard to Debug", level=1)
     add_paragraph(document, "The original file does not have named states such as IDLE, ARMED, MELTING, or FIRED. Instead, the operator has to infer the current situation from several booleans that interact with each other. This makes it hard to answer questions like: Did the sequence fail before arming? Is it currently in the hot-wire phase? Has it already fired once? Is it waiting for reset?")
     add_paragraph(document, "In addition, the serial output in the original sketch prints compact numeric values without describing transitions in words. That means the code may be running, but the operator still cannot easily see the sequence in real time.")
 
-    document.add_heading("9. Safety Concerns Specific to the Original Code", level=1)
+    document.add_heading("11. Safety Concerns Specific to the Original Code", level=1)
     add_bullet(document, "There is no hardwired safety logic in software; the file assumes external protection exists.")
     add_bullet(document, "Because Melty() blocks for the full hot-wire duration, the code cannot react to Arm being released during that period.")
     add_bullet(document, "The original file contains no clear documentation of safe reset conditions or mode-change behavior.")
     add_bullet(document, "The hot-wire relay control is mixed up with a boolean flag, which is especially dangerous in a hardware-control file because it can create false confidence about what output is being driven.")
 
-    document.add_heading("10. Practical Reading of the Original File", level=1)
+    document.add_heading("12. Practical Reading of the Original File", level=1)
     add_paragraph(document, "The original sketch should be read as a first working prototype rather than a finished control program. It captures the intended test sequence in a compact form, but it leaves too much hidden in the implementation. For collaboration, safety review, and commissioning, the code benefits from explicit comments, visible units, deliberate debug output, and a clearer state structure.")
 
-    document.add_heading("11. Short Summary", level=1)
+    document.add_heading("13. Short Summary", level=1)
     add_paragraph(document, "The original code appears intended to run a valid trigger-box sequence, but it contains missing comments, hidden units, blocking timing, and at least one major pin/boolean mix-up. The code can therefore be understood as a prototype of the desired sequence, but not as a well-documented or low-risk final implementation.")
 
     enforce_arial_everywhere(document)

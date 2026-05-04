@@ -15,14 +15,29 @@ This document explains what the original code appears to do, where the main risk
 
 ## 2. Code File Covered Here
 
-- `M-Duino/ArduinoCode/M-Duino_Original/M-Duino_Original.ino`
+- `M-DuinoScripts/M-Duino_Original/M-Duino_Original.ino`
 
 Important note:
 
 - This document describes the original sketch only.
-- It does not describe the cleaned state-machine rewrite.
+- It does not describe the cleaned state-machine rewrite in `M_Duino_v002.ino`.
+- The original `.ino` file is the source of truth for the baseline implementation discussed here.
 
-## 3. What the Original Code Appears to Do
+## 3. Relationship to the Later Reviewed Version
+
+This document describes the original baseline code that was later improved in the reviewed firmware.
+
+The later reviewed version is:
+
+- `M-DuinoScripts/M_Duino_v002/M_Duino_v002.ino`
+
+So the intended interpretation is:
+
+- this document explains the original implementation and its risks
+- the reviewed controller document explains the later improved version
+- the two documents should not be treated as describing the same firmware file
+
+## 4. What the Original Code Appears to Do
 
 The original sketch has two operating modes:
 
@@ -42,13 +57,13 @@ In hydrogen-test mode, the code appears intended to do the following:
 
 The intended sequence is not explained in the original file itself, so the diagram below summarizes the behavior the code seems to be aiming for.
 
-## 4. Expected Sequence from the Original Logic
+## 5. Expected Sequence from the Original Logic
 
-![Original trigger box expected sequence](/Users/javiercamacho/Desktop/Industrial PhD/Conference-Webinar-Workshops/2025/ICHS-INTERNATIONAL CONFERENCE ON HYDROGEN SAFETY  /10-Material-Books-Standards/SetUp-Design/SyncronisationBox/original_trigger_box_expected_sequence_v000.png)
+![Original trigger box expected sequence](../Diagrams/original_trigger_box_expected_sequence_v000.png)
 
 Figure 1. Expected sequence and major risks in the original sketch.
 
-## 5. Missing Comments and Hidden Assumptions
+## 6. Missing Comments and Hidden Assumptions
 
 The original file has almost no explanatory comments. That creates several problems:
 
@@ -60,7 +75,7 @@ The original file has almost no explanatory comments. That creates several probl
 
 Because of that, different readers may interpret the same code differently.
 
-## 6. Hidden Time Units in the Original Code
+## 7. Hidden Time Units in the Original Code
 
 The original code uses plain numbers such as `10`, `5000`, and `600`, but the numbers themselves do not contain any time unit.
 
@@ -82,7 +97,7 @@ That means the original variables work like this:
 
 This is one reason the later cleaned code uses names such as `_us` directly in the variables.
 
-## 7. Main Technical Issues in the Original Sketch
+## 8. Main Technical Issues in the Original Sketch
 
 ### Issue 1. `HotWire` is a boolean, but it is used like a pin
 
@@ -151,7 +166,7 @@ The original code prints compact raw values, but it does not print readable mess
 
 So even if the sketch is running, the operator cannot easily see the sequence in words.
 
-## 8. Original Hydrogen-Test Logic in Words
+## 9. Original Hydrogen-Test Logic in Words
 
 This is the expected reading of `HydrogenTest()`:
 
@@ -169,7 +184,7 @@ This is the expected reading of `HydrogenTest()`:
 12. It sets `Fired = true` and uses `flag` as an additional latch.
 13. The system stays latched until both `Arm` and `Trigger` are released.
 
-## 9. Why the Original File Is Hard to Debug
+## 10. Why the Original File Is Hard to Debug
 
 The original file is hard to debug for several reasons:
 
@@ -187,7 +202,7 @@ So when something goes wrong, it is difficult to answer questions like:
 - Has it already fired?
 - Is it waiting for reset?
 
-## 10. Safety Concerns Specific to the Original Code
+## 11. Safety Concerns Specific to the Original Code
 
 - The file assumes external safety hardware exists.
 - The code does not clearly document safe reset conditions.
@@ -195,7 +210,7 @@ So when something goes wrong, it is difficult to answer questions like:
 - The hot-wire flag/pin confusion is especially risky in hardware-control code.
 - The file does not clearly describe what should happen if `Arm` is released during a hazardous phase.
 
-## 11. Short Summary
+## 12. Short Summary
 
 The original code appears to be a compact prototype of the desired trigger-box behavior, but it is not well documented and it contains several important implementation risks.
 

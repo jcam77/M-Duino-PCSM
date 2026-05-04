@@ -212,8 +212,8 @@ git branch --show-current
 git merge CODEX-Updates -m "Merge CODEX-Updates into main"
 git push origin main
 git branch --show-current
-git tag -a mduino-pcsm-v0.1.3 -m "mduino-pcsm-v0.1.3"
-git push origin mduino-pcsm-v0.1.3
+git tag -a mduino-pcsm-v0.1.4 -m "mduino-pcsm-v0.1.4"
+git push origin mduino-pcsm-v0.1.4
 git switch CODEX-Updates
 git merge main
 git push origin CODEX-Updates

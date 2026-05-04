@@ -341,7 +341,15 @@ def build_document():
         "The revised code is longer than the original because it makes the sequence explicit and easier to audit. Instead of relying on several interacting flags, it uses a named state machine.",
     )
 
-    document.add_heading("2. Hardware Signals", level=1)
+    document.add_heading("2. Firmware Source Referenced", level=1)
+    add_paragraph(document, "This explanation refers to the following source files in the repository:")
+    add_bullet(document, "`M-DuinoScripts/M_Duino_v002/M_Duino_v002.ino`")
+    add_bullet(document, "`M-DuinoScripts/M-Duino_Original/M-Duino_Original.ino`")
+    add_paragraph(document, "Interpretation rule:")
+    add_bullet(document, "the `.ino` files are the source of truth for the actual firmware logic")
+    add_bullet(document, "this document explains the logic and terminology, but does not replace the source code itself")
+
+    document.add_heading("3. Hardware Signals", level=1)
     io_table = document.add_table(rows=1, cols=4)
     headers = ["Signal", "Type", "Purpose", "Meaning in the logic"]
     for i, header in enumerate(headers):
@@ -361,7 +369,7 @@ def build_document():
             set_cell_text(cells[idx], value, bold=False)
     style_table(io_table)
 
-    document.add_heading("3. Unit Convention", level=1)
+    document.add_heading("4. Unit Convention", level=1)
     add_paragraph(
         document,
         "The code uses explicit units where they matter.",
@@ -402,7 +410,7 @@ def build_document():
     add_bullet(document, "but a few names still need physical interpretation in the documentation")
     add_bullet(document, "the main example is `sparkDwell_us`, which should be understood as coil dwell / ignition-command time, not literal plasma duration at the spark plug")
 
-    document.add_heading("4. Main Timing Variables", level=1)
+    document.add_heading("5. Main Timing Variables", level=1)
     timing = document.add_table(rows=1, cols=4)
     for idx, header in enumerate(["Variable", "Current value", "Unit", "Meaning"]):
         set_cell_text(timing.cell(0, idx), header, bold=True)
@@ -411,7 +419,7 @@ def build_document():
         ("`sparkDwell_us`", "`5,000`", "microseconds", "Coil dwell / ignition-command duration before release. In a coil-based system, the physical spark is typically produced when this command goes low."),
         ("`daqPulse_us`", "`600`", "microseconds", "Width of the DAQ trigger pulse during the final part of the dwell interval."),
         ("`sparkTestInterval_us`", "`500,000`", "microseconds", "Time between ignition-command cycles in spark-test mode."),
-        ("`debounce_us`", "`30,000`", "microseconds", "Stable input time required before accepting a switch change."),
+        ("`debounce_us`", "`30,000`", "microseconds", "Stable input time required before accepting a switch change. This can introduce up to about `30 ms` of input acceptance delay for a changed switch state."),
         ("`serialPrintInterval_us`", "`250,000`", "microseconds", "Limits how often the serial monitor is updated."),
     ]
     for row in timing_rows:
@@ -420,7 +428,38 @@ def build_document():
             set_cell_text(cells[idx], value, bold=False)
     style_table(timing)
 
-    document.add_heading("5. Sequence Overview", level=1)
+    document.add_paragraph("Debounce interpretation")
+    add_paragraph(document, "The debounce setting is often misunderstood, so it is useful to state it explicitly:")
+    add_bullet(document, "`debounce_us = 30,000` means the firmware waits for the raw input to remain unchanged for about `30 ms` before accepting the new state.")
+    add_bullet(document, "This can introduce up to about `30 ms` of input acceptance delay after a switch changes.")
+    add_bullet(document, "That delay is intentional. It helps reject mechanical switch bounce and short noise spikes.")
+    add_bullet(document, "It does not mean the whole controller is delayed by `30 ms` all the time. It only affects recognition of a changed input state.")
+    add_paragraph(document, "The software method used here is:")
+    add_bullet(document, "if the raw input changes, the debounce timer effectively restarts")
+    add_bullet(document, "only when the raw level stays unchanged for the full debounce interval does the firmware update the accepted stable state")
+    add_paragraph(document, "This is a common and robust debounce approach for mechanical operator controls such as `Arm`, `Trigger`, and `Mode`.")
+
+    document.add_paragraph("Recommended feature settings for real hazardous tests")
+    add_paragraph(document, "For a real hydrogen ignition run, the recommended feature configuration is:")
+    add_bullet(document, "`useHotWireStep = true`")
+    add_bullet(document, "`enableSerialDebug = false`")
+    add_bullet(document, "`enableTransitionDebug = false`")
+    add_bullet(document, "`useBenchTestTimings = false`")
+    add_paragraph(document, "Interpretation:")
+    add_bullet(document, "`useHotWireStep = true` should remain enabled if the real experiment includes the hot-wire stage before ignition.")
+    add_bullet(document, "`enableSerialDebug = false` is recommended for real firing because serial printing at `9600` baud can interfere with short timing windows such as `sparkDwell_us = 5000` and `daqPulse_us = 600`.")
+    add_bullet(document, "`enableTransitionDebug = false` should also be disabled for the same reason.")
+    add_bullet(document, "`useBenchTestTimings = false` keeps the real timing values instead of the shortened bench/simulator values.")
+    add_paragraph(document, "For bench testing, dry checks, and Wokwi-style logic validation, it is still reasonable to use debug output and shortened timings when needed.")
+
+    document.add_paragraph("DAQ output path note")
+    add_paragraph(document, "The `DAQTrig` pulse is intentionally short. In the reviewed configuration it is only `600 us`, so the real DAQ trigger path should be verified as a fast electronic output path, not a mechanical relay path.")
+    add_paragraph(document, "The practical hardware check is:")
+    add_bullet(document, "confirm that the DAQ trigger is driven from the intended `Q` output path")
+    add_bullet(document, "confirm that the signal is not later routed through a slow relay or bouncing contact")
+    add_bullet(document, "confirm on an oscilloscope that the real pulse width and edge timing are acceptable at the DAQ input")
+
+    document.add_heading("6. Sequence Overview", level=1)
     add_paragraph(
         document,
         "",
@@ -464,7 +503,7 @@ def build_document():
     ]:
         add_bullet(document, item)
 
-    document.add_heading("6. State Machine", level=1)
+    document.add_heading("7. State Machine", level=1)
     add_paragraph(
         document,
         "The reviewed version uses a state machine instead of several loosely connected flags.",
@@ -488,7 +527,7 @@ def build_document():
             set_cell_text(cells[idx], value)
     style_table(state_table)
 
-    document.add_heading("7. Why This Version Is Safer and Easier to Read", level=1)
+    document.add_heading("8. Why This Version Is Safer and Easier to Read", level=1)
     add_paragraph(document, "Compared with the original short sketch, the reviewed version improves several important points:")
     for item in [
         "The hot-wire relay outputs are clearly separated from boolean flags.",
@@ -500,7 +539,7 @@ def build_document():
     ]:
         add_bullet(document, item)
 
-    document.add_heading("8. Code Structure", level=1)
+    document.add_heading("9. Code Structure", level=1)
     structure = document.add_table(rows=1, cols=2)
     for idx, header in enumerate(["Function or block", "Role"]):
         set_cell_text(structure.cell(0, idx), header, bold=True)
@@ -520,7 +559,7 @@ def build_document():
             set_cell_text(cells[idx], value)
     style_table(structure)
 
-    document.add_heading("9. Safety Behaviors Built Into the Logic", level=1)
+    document.add_heading("10. Safety Behaviors Built Into the Logic", level=1)
     for item in [
         "All outputs are forced off at startup.",
         "All outputs are forced off after firing, failure, abort, or mode change.",
@@ -533,12 +572,12 @@ def build_document():
     add_bullet(document, "This software is not a substitute for a hardwired emergency stop.")
     add_bullet(document, "The emergency stop should physically remove power from the hot-wire supply and the spark system.")
 
-    document.add_heading("10. Hardware Points to Confirm", level=1)
+    document.add_heading("11. Hardware Points to Confirm", level=1)
     add_paragraph(document, "Before using the controller on the real setup, two hardware questions should be confirmed:")
     add_number(document, "`Relay polarity`\nSome relay modules are active `LOW` rather than active `HIGH`. If the relays energize when the controller output goes low, the output logic in the code must be inverted.")
     add_number(document, "`Input wiring`\nThe `Arm`, `Trigger`, and `Mode` inputs must be electrically well-defined. If the wiring allows the input to float, the controller can behave unpredictably.")
 
-    document.add_heading("11. Practical Test Strategy", level=1)
+    document.add_heading("12. Practical Test Strategy", level=1)
     add_paragraph(document, "Recommended step-by-step validation:")
     add_number(document, "Power the M-Duino correctly from its intended external supply.")
     add_number(document, "Connect the Mac by USB only for upload and serial monitoring.")
@@ -547,7 +586,7 @@ def build_document():
     add_number(document, "Verify relay polarity on each hot-wire channel before connecting the real hot-wire power circuit.")
     add_number(document, "Introduce the real hot-wire and spark hardware only after the low-risk logic checks pass.")
 
-    document.add_heading("12. Short Summary", level=1)
+    document.add_heading("13. Short Summary", level=1)
     add_paragraph(
         document,
         "This reviewed version keeps the same overall purpose as the original sketch, but it is easier to understand, easier to explain, and easier to review with colleagues. The main improvements are:",

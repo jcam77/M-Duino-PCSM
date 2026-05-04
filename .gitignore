@@ -8,6 +8,4 @@ node_modules/
 frontend/dist/
 dist-electron/
 *.egg-info/
-
-EXDA-app/
 /.fuse*

@@ -22,7 +22,19 @@ In hydrogen-test mode, the controller enforces a defined sequence:
 
 The revised code is longer than the original because it makes the sequence explicit and easier to audit. Instead of relying on several interacting flags, it uses a named state machine.
 
-## 2. Hardware Signals
+## 2. Firmware Source Referenced
+
+This explanation refers to the following source files in the repository:
+
+- `M-DuinoScripts/M_Duino_v002/M_Duino_v002.ino`
+- `M-DuinoScripts/M-Duino_Original/M-Duino_Original.ino`
+
+Interpretation rule:
+
+- the `.ino` files are the source of truth for the actual firmware logic
+- this document explains the logic and terminology, but does not replace the source code itself
+
+## 3. Hardware Signals
 
 | Signal                                   | Type            | Purpose            | Meaning in the logic                                                            |
 | ---------------------------------------- | --------------- | ------------------ | ------------------------------------------------------------------------------- |
@@ -34,7 +46,7 @@ The revised code is longer than the original because it makes the sequence expli
 | `SparkOut`                             | Digital output  | Both modes         | Commands the ignition stage. In a coil-based setup, this typically defines the dwell / coil-charge interval rather than the exact physical spark duration. |
 | `DAQTrig`                              | Digital output  | Hydrogen-test mode | Sends a timing pulse to the data-acquisition system.                            |
 
-## 3. Unit Convention
+## 4. Unit Convention
 
 The code uses explicit units where they matter.
 
@@ -86,7 +98,7 @@ Important nuance:
 - but a few names still need physical interpretation in the documentation
 - the main example is `sparkDwell_us`, which should be understood as coil dwell / ignition-command time, not literal plasma duration at the spark plug
 
-## 4. Main Timing Variables
+## 5. Main Timing Variables
 
 | Variable                   | Current value  | Unit         | Meaning                                                       |
 | -------------------------- | -------------- | ------------ | ------------------------------------------------------------- |
@@ -94,10 +106,54 @@ Important nuance:
 | `sparkDwell_us`          | `5,000`      | microseconds | Coil dwell / ignition-command duration before release. In a coil-based system, the physical spark is typically produced when this command goes low. |
 | `daqPulse_us`            | `600`        | microseconds | Width of the DAQ trigger pulse during the final part of the dwell interval. |
 | `sparkTestInterval_us`   | `500,000`    | microseconds | Time between ignition-command cycles in spark-test mode. |
-| `debounce_us`            | `30,000`     | microseconds | Stable input time required before accepting a switch change.  |
+| `debounce_us`            | `30,000`     | microseconds | Stable input time required before accepting a switch change. This can introduce up to about `30 ms` of input acceptance delay for a changed switch state. |
 | `serialPrintInterval_us` | `250,000`    | microseconds | Limits how often the serial monitor is updated.               |
 
-## 5. Sequence Overview
+### Debounce interpretation
+
+The debounce setting is often misunderstood, so it is useful to state it explicitly:
+
+- `debounce_us = 30,000` means the firmware waits for the raw input to remain unchanged for about `30 ms` before accepting the new state.
+- This can introduce up to about `30 ms` of input acceptance delay after a switch changes.
+- That delay is intentional. It helps reject mechanical switch bounce and short noise spikes.
+- It does **not** mean the whole controller is delayed by `30 ms` all the time. It only affects recognition of a changed input state.
+
+The software method used here is:
+
+- if the raw input changes, the debounce timer effectively restarts
+- only when the raw level stays unchanged for the full debounce interval does the firmware update the accepted stable state
+
+This is a common and robust debounce approach for mechanical operator controls such as `Arm`, `Trigger`, and `Mode`.
+
+### Recommended feature settings for real hazardous tests
+
+For a real hydrogen ignition run, the recommended feature configuration is:
+
+- `useHotWireStep = true`
+- `enableSerialDebug = false`
+- `enableTransitionDebug = false`
+- `useBenchTestTimings = false`
+
+Interpretation:
+
+- `useHotWireStep = true` should remain enabled if the real experiment includes the hot-wire stage before ignition.
+- `enableSerialDebug = false` is recommended for real firing because serial printing at `9600` baud can interfere with short timing windows such as `sparkDwell_us = 5000` and `daqPulse_us = 600`.
+- `enableTransitionDebug = false` should also be disabled for the same reason.
+- `useBenchTestTimings = false` keeps the real timing values instead of the shortened bench/simulator values.
+
+For bench testing, dry checks, and Wokwi-style logic validation, it is still reasonable to use debug output and shortened timings when needed.
+
+### DAQ output path note
+
+The `DAQTrig` pulse is intentionally short. In the reviewed configuration it is only `600 us`, so the real DAQ trigger path should be verified as a **fast electronic output path**, not a mechanical relay path.
+
+The practical hardware check is:
+
+- confirm that the DAQ trigger is driven from the intended `Q` output path
+- confirm that the signal is not later routed through a slow relay or bouncing contact
+- confirm on an oscilloscope that the real pulse width and edge timing are acceptable at the DAQ input
+
+## 6. Sequence Overview
 
 ![Trigger box sequence diagram](../Diagrams/trigger_box_sequence_diagram_v004.png)
 
@@ -132,7 +188,7 @@ Important interpretation note:
 - If `Arm` is active, the controller generates periodic ignition-command cycles.
 - If `Arm` is released, the controller turns the spark output off immediately.
 
-## 6. State Machine
+## 7. State Machine
 
 The reviewed version uses a state machine instead of several loosely connected flags.
 
@@ -147,7 +203,7 @@ The reviewed version uses a state machine instead of several loosely connected f
 | `stateFail`         | An invalid start condition occurred, such as Trigger being active before proper arming. |
 | `stateAborted`      | The sequence was interrupted because Arm was released during a hazardous phase.         |
 
-## 7. Why This Version Is Safer and Easier to Read
+## 8. Why This Version Is Safer and Easier to Read
 
 Compared with the original short sketch, the reviewed version improves several important points:
 
@@ -158,7 +214,7 @@ Compared with the original short sketch, the reviewed version improves several i
 - Unsafe transitions such as releasing `Arm` during the hot-wire or spark phase are handled immediately.
 - Mode changes force the controller back to a safe state.
 
-## 8. Code Structure
+## 9. Code Structure
 
 | Function or block            | Role                                                                                           |
 | ---------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -171,7 +227,7 @@ Compared with the original short sketch, the reviewed version improves several i
 | `startSparkSequence()`     | Forces hot wires off, starts the ignition-command stage, and begins dwell timing.                         |
 | `allOutputsOff()`          | Provides a reusable safe-off command for all outputs.                                          |
 
-## 9. Safety Behaviors Built Into the Logic
+## 10. Safety Behaviors Built Into the Logic
 
 - All outputs are forced off at startup.
 - All outputs are forced off after firing, failure, abort, or mode change.
@@ -184,7 +240,7 @@ Important note:
 - This software is not a substitute for a hardwired emergency stop.
 - The emergency stop should physically remove power from the hot-wire supply and the spark system.
 
-## 10. Hardware Points to Confirm
+## 11. Hardware Points to Confirm
 
 Before using the controller on the real setup, two hardware questions should be confirmed:
 
@@ -193,7 +249,7 @@ Before using the controller on the real setup, two hardware questions should be 
 2. `Input wiring`
    The `Arm`, `Trigger`, and `Mode` inputs must be electrically well-defined. If the wiring allows the input to float, the controller can behave unpredictably.
 
-## 11. Practical Test Strategy
+## 12. Practical Test Strategy
 
 Recommended step-by-step validation:
 
@@ -204,7 +260,7 @@ Recommended step-by-step validation:
 5. Verify relay polarity on each hot-wire channel before connecting the real hot-wire power circuit.
 6. Introduce the real hot-wire and spark hardware only after the low-risk logic checks pass.
 
-## 12. Short Summary
+## 13. Short Summary
 
 This reviewed version keeps the same overall purpose as the original sketch, but it is easier to understand, easier to explain, and easier to review with colleagues. The main improvements are:
 

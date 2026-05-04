@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "author": "OpenAI Codex",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-mega", "id": "mega", "top": 32, "left": 40, "attrs": {} },
+
+    { "type": "wokwi-slide-switch", "id": "swArm", "top": -214, "left": -506, "attrs": { "label": "ARM", "bounce": "0", "value": "1" } },
+    { "type": "wokwi-pushbutton", "id": "btnTrigger", "top": -48, "left": -494, "attrs": { "label": "TRIGGER", "key": "T", "bounce": "0", "color": "red" } },
+    { "type": "wokwi-slide-switch", "id": "swMode", "top": 122, "left": -506, "attrs": { "label": "MODE", "bounce": "0", "value": "1" } },
+
+    { "type": "wokwi-led", "id": "ledArm", "top": -238, "left": 708, "attrs": { "color": "green", "label": "Arm Light" } },
+    { "type": "wokwi-led", "id": "ledHot1", "top": -174, "left": 708, "attrs": { "color": "yellow", "label": "Hot Wire 1" } },
+    { "type": "wokwi-led", "id": "ledHot2", "top": -110, "left": 708, "attrs": { "color": "yellow", "label": "Hot Wire 2" } },
+    { "type": "wokwi-led", "id": "ledHot3", "top": -46, "left": 708, "attrs": { "color": "yellow", "label": "Hot Wire 3" } },
+    { "type": "wokwi-led", "id": "ledSpark", "top": 18, "left": 708, "attrs": { "color": "blue", "label": "SparkOut" } },
+    { "type": "wokwi-led", "id": "ledDaq", "top": 82, "left": 708, "attrs": { "color": "red", "label": "DAQTrig" } },
+
+    { "type": "wokwi-resistor", "id": "rLedArm", "top": -226, "left": 812, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "rLedHot1", "top": -162, "left": 812, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "rLedHot2", "top": -98, "left": 812, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "rLedHot3", "top": -34, "left": 812, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "rLedSpark", "top": 30, "left": 812, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "rLedDaq", "top": 94, "left": 812, "rotate": 90, "attrs": { "value": "220" } }
+  ],
+  "connections": [
+    [ "swArm:2", "mega:28", "green", [ "h56", "v36", "h138" ] ],
+    [ "swArm:1", "mega:GND.2", "black", [ "h-38", "v230", "h406" ] ],
+
+    [ "btnTrigger:1.l", "mega:26", "green", [ "h54", "v0", "h148" ] ],
+    [ "btnTrigger:2.l", "mega:GND.4", "black", [ "h68", "v140", "h208" ] ],
+
+    [ "swMode:2", "mega:27", "green", [ "h56", "v-28", "h138" ] ],
+    [ "swMode:1", "mega:GND.2", "black", [ "h-38", "v134", "h406" ] ],
+
+    [ "mega:22", "ledArm:A", "green", [ "h166", "v-256", "h196" ] ],
+    [ "ledArm:C", "rLedArm:1", "green", [ "h46" ] ],
+    [ "rLedArm:2", "mega:GND.5", "black", [ "v70", "h-402" ] ],
+
+    [ "mega:23", "ledHot1:A", "yellow", [ "h184", "v-202", "h196" ] ],
+    [ "ledHot1:C", "rLedHot1:1", "yellow", [ "h46" ] ],
+    [ "rLedHot1:2", "mega:GND.5", "black", [ "v70", "h-402" ] ],
+
+    [ "mega:24", "ledHot2:A", "yellow", [ "h202", "v-148", "h196" ] ],
+    [ "ledHot2:C", "rLedHot2:1", "yellow", [ "h46" ] ],
+    [ "rLedHot2:2", "mega:GND.5", "black", [ "v70", "h-402" ] ],
+
+    [ "mega:25", "ledHot3:A", "yellow", [ "h220", "v-94", "h196" ] ],
+    [ "ledHot3:C", "rLedHot3:1", "yellow", [ "h46" ] ],
+    [ "rLedHot3:2", "mega:GND.5", "black", [ "v70", "h-402" ] ],
+
+    [ "mega:29", "ledSpark:A", "blue", [ "h202", "v-42", "h196" ] ],
+    [ "ledSpark:C", "rLedSpark:1", "blue", [ "h46" ] ],
+    [ "rLedSpark:2", "mega:GND.5", "black", [ "v70", "h-402" ] ],
+
+    [ "mega:30", "ledDaq:A", "red", [ "h220", "v10", "h196" ] ],
+    [ "ledDaq:C", "rLedDaq:1", "red", [ "h46" ] ],
+    [ "rLedDaq:2", "mega:GND.5", "black", [ "v70", "h-402" ] ]
+  ],
+  "serialMonitor": {
+    "display": "always",
+    "newline": "lf"
+  }
+}
