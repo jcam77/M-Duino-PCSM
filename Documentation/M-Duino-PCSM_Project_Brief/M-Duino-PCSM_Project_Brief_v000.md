@@ -60,20 +60,22 @@ The app is intended to connect to:
 ### Current code references
 
 - `Original reference code`
-  `M-Duino/ArduinoCode/M-Duino_Original/M-Duino_Original.ino`
+  `M-DuinoScripts/M-Duino_Original/M-Duino_Original.ino`
 
 - `Current cleaned controller code baseline`
-  `M-Duino/ArduinoCode/M_Duino_v002/M_Duino_v002.ino`
+  `M-DuinoScripts/M_Duino_v005/M_Duino_v005.ino`
 
 ### Why the cleaned code is the current baseline
 
-`M_Duino_v002.ino` should be treated as the firmware baseline for app integration because it already includes:
+`M_Duino_v005.ino` should be treated as the firmware baseline for app integration because it already includes:
 
 - explicit timing variable names with units
 - commented sequence logic
 - named controller states
 - clearer separation between logic flags and output pins
 - debug-oriented state transition logging
+- spark-test toggle control
+- a `30 s` spark-test safety timeout
 
 ### Firmware dependency
 

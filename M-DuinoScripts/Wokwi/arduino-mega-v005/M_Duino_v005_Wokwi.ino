@@ -1,7 +1,20 @@
 /*
+  Wokwi-ready wrapper for the M-Duino Trigger Box Controller v005.
+
+  IMPORTANT
+    - This file is for Arduino Mega / Wokwi simulation only.
+    - The production source of truth remains:
+      M-DuinoScripts/M_Duino_v005/M_Duino_v005.ino
+    - Do not treat this file as the authoritative firmware for the
+      real Industrial Shields controller.
+*/
+
+#include "mduino_wokwi_pins.h"
+
+/*
   ============================================================
   Trigger Box Controller
-  Version: v004
+  Version: v005
   Target: Industrial Shields M-Duino 19R+
   ============================================================
 
@@ -43,6 +56,8 @@
         * first Trigger press starts repeating spark pulses
         * second Trigger press stops them
     - Releasing Arm stops spark-test activity immediately.
+    - A safety timeout stops spark-test automatically after a
+      maximum allowed run time.
     - The state machine makes debugging easier because the controller
       always has one clear "current state".
     - Open the Serial Monitor at 9600 baud to see:
@@ -88,16 +103,16 @@ const int daqTrigPin  = Q0_0;
 // Hardware logic configuration
 // ============================================================
 
-// Set to false if your digital inputs are electrically active LOW.
-const bool inputActiveHigh = true;
+// Wokwi simulation uses internal pull-ups for cleaner wiring.
+// Inputs are therefore logically active LOW in the simulator.
+const bool inputActiveHigh = false;
 
 // Set to false if your outputs / relay modules are electrically active LOW.
 const bool outputActiveHigh = true;
 
-// For Industrial Shields hardware, INPUT is usually correct.
-// If your hardware requires pull-ups, use INPUT_PULLUP and also
-// set inputActiveHigh = false.
-const int inputMode = INPUT;
+// Wokwi simulation uses Arduino internal pull-ups to avoid floating inputs
+// and to keep the diagram easier to read.
+const int inputMode = INPUT_PULLUP;
 
 
 // ============================================================
@@ -145,6 +160,11 @@ const unsigned long daqPulse_us = 600UL;
 // while spark-test is enabled.
 const unsigned long sparkTestInterval_us =
   useBenchTestTimings ? (1000UL * usPerMs) : (500UL * usPerMs);
+
+// Maximum allowed continuous spark-test run time before automatic stop.
+// This is a safety timeout to reduce the risk of leaving spark-test
+// running unintentionally for too long.
+const unsigned long sparkTestMaxRun_us = 30UL * usPerS;
 
 // Debounce time for mechanical input switches.
 // A new raw input level must remain unchanged for this full interval
@@ -293,6 +313,7 @@ bool sparkTestEnabled = false;
 bool sparkTestPulseActive = false;
 unsigned long sparkTestStart_us = 0;
 unsigned long lastSparkTestPulse_us = 0;
+unsigned long sparkTestRunStart_us = 0;
 
 // Used to detect changes between spark-test mode and hydrogen-test mode
 bool previousSparkTestMode = false;
@@ -499,6 +520,8 @@ void updateInputs() {
         each Trigger press toggles the repeating spark sequence
           * first press  -> start repeating pulses
           * second press -> stop repeating pulses
+    - If spark-test runs longer than sparkTestMaxRun_us:
+        it stops automatically
 */
 void handleSparkTestMode() {
   setHotWires(false);
@@ -531,6 +554,7 @@ void handleSparkTestMode() {
     }
 
     // Allow the first pulse to start immediately after enabling.
+    sparkTestRunStart_us = now_us;
     lastSparkTestPulse_us = now_us - sparkTestInterval_us;
 
     if (enableTransitionDebug) {
@@ -541,6 +565,17 @@ void handleSparkTestMode() {
   if (!sparkTestEnabled) {
     setSpark(false);
     sparkTestPulseActive = false;
+    return;
+  }
+
+  if ((now_us - sparkTestRunStart_us) >= sparkTestMaxRun_us) {
+    sparkTestEnabled = false;
+    setSpark(false);
+    sparkTestPulseActive = false;
+
+    if (enableTransitionDebug) {
+      Serial.println("SPARK_TEST_EVENT: Spark-test auto-stopped by safety timeout");
+    }
     return;
   }
 
@@ -806,7 +841,7 @@ void printStartupConfiguration() {
   }
 
   Serial.println("================================================");
-  Serial.println("Trigger Box Controller v004 startup");
+  Serial.println("Trigger Box Controller v005 startup");
   Serial.print("Input active HIGH: ");
   Serial.println(inputActiveHigh);
   Serial.print("Output active HIGH: ");
@@ -823,6 +858,8 @@ void printStartupConfiguration() {
   Serial.println(daqPulse_us);
   Serial.print("sparkTestInterval_us: ");
   Serial.println(sparkTestInterval_us);
+  Serial.print("sparkTestMaxRun_us: ");
+  Serial.println(sparkTestMaxRun_us);
   Serial.println("Open Serial Monitor at 9600 baud for live sequence logs.");
   Serial.println("================================================");
 }

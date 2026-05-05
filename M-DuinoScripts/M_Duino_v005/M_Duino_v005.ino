@@ -1,7 +1,7 @@
 /*
   ============================================================
   Trigger Box Controller
-  Version: v004
+  Version: v005
   Target: Industrial Shields M-Duino 19R+
   ============================================================
 
@@ -11,10 +11,12 @@
       1. Operator arms the system
       2. Operator presses Trigger
       3. Hot-wire relays energize for a defined time
-      4. Spark output turns ON
-      5. DAQ trigger turns ON near the end of the spark pulse
+      4. SparkOut turns ON and the coil dwell interval begins
+      5. DAQ trigger turns ON near the end of the dwell interval
       6. Outputs turn OFF
-      7. System stays locked out until both Arm and Trigger are released
+      7. The physical ignition spark is expected at or immediately after
+         the SparkOut falling edge when the coil field collapses
+      8. System stays locked out until both Arm and Trigger are released
 
   OPERATING MODES
     Mode HIGH:
@@ -40,8 +42,8 @@
   DEBUGGING NOTES
     - This version adds explicit state-transition logging.
     - Spark-test mode now uses Trigger as a toggle command:
-        * first Trigger press starts repeating spark pulses
-        * second Trigger press stops them
+        * first Trigger activation starts repeating SparkOut dwell cycles
+        * second Trigger activation stops them
     - Releasing Arm stops spark-test activity immediately.
     - The state machine makes debugging easier because the controller
       always has one clear "current state".
@@ -133,15 +135,15 @@ const unsigned long usPerS  = 1000000UL;
 const unsigned long hotWireBurn_us =
   useBenchTestTimings ? (1UL * usPerS) : (10UL * usPerS);
 
-// Total spark pulse duration.
+// Total SparkOut dwell / ignition-command duration.
 // Production example: 5000 us = 5 ms
 const unsigned long sparkDwell_us = 5000UL;
 
 // DAQ trigger pulse width.
-// DAQ will be active during the final daqPulse_us of the spark pulse.
+// DAQ will be active during the final daqPulse_us of the dwell interval.
 const unsigned long daqPulse_us = 600UL;
 
-// In spark-test mode, the next spark pulse starts at this interval
+// In spark-test mode, the next SparkOut dwell cycle starts at this interval
 // while spark-test is enabled.
 const unsigned long sparkTestInterval_us =
   useBenchTestTimings ? (1000UL * usPerMs) : (500UL * usPerMs);
@@ -246,10 +248,11 @@ DebouncedInput armInput;
     Hot-wire relays are energized.
 
   stateSparkWaitDaq
-    Spark is ON. Waiting until it is time to raise DAQ.
+    SparkOut is ON. Coil dwell is active. Waiting until it is time
+    to raise DAQ.
 
   stateSparkWaitEnd
-    Spark and DAQ are ON. Waiting until spark dwell completes.
+    SparkOut and DAQ are ON. Waiting until dwell completes.
 
   stateFired
     Sequence completed successfully. Lockout until inputs are released.
@@ -282,7 +285,7 @@ SystemState currentState = stateIdle;
 // Timestamp when the hot-wire stage started
 unsigned long meltStart_us = 0;
 
-// Timestamp when the spark stage started
+// Timestamp when the SparkOut dwell stage started
 unsigned long sparkStart_us = 0;
 
 // Timestamp of the most recent serial debug print
@@ -377,9 +380,11 @@ void allOutputsOff() {
     daqPulse_us   = 600 us
 
   Sequence:
-    Spark ON at t = 0 us
-    DAQ ON   at t = 4400 us
-    Spark OFF and DAQ OFF at t = 5000 us
+    SparkOut ON at t = 0 us (coil dwell begins)
+    DAQ ON      at t = 4400 us
+    SparkOut OFF and DAQ OFF at t = 5000 us
+    Physical ignition spark expected at or immediately after the
+    SparkOut falling edge
 */
 unsigned long daqStartDelay_us() {
   if (sparkDwell_us > daqPulse_us) {
@@ -409,8 +414,8 @@ void enterSafeLockout(SystemState newState, const char* reason) {
 
 /*
   startSparkSequence()
-    Starts the spark timing phase.
-    Hot wires are forced OFF before Spark turns ON.
+    Starts the SparkOut dwell timing phase.
+    Hot wires are forced OFF before SparkOut turns ON.
 */
 void startSparkSequence() {
   setHotWires(false);
@@ -418,7 +423,7 @@ void startSparkSequence() {
   setSpark(true);
 
   sparkStart_us = micros();
-  changeState(stateSparkWaitDaq, "spark started");
+  changeState(stateSparkWaitDaq, "SparkOut dwell started");
 }
 
 /*
@@ -496,9 +501,9 @@ void updateInputs() {
     - If Arm is inactive:
         all outputs are OFF and spark-test is disabled
     - If Arm is active:
-        each Trigger press toggles the repeating spark sequence
-          * first press  -> start repeating pulses
-          * second press -> stop repeating pulses
+        each Trigger activation edge toggles the repeating SparkOut sequence
+          * first edge   -> start repeating dwell cycles
+          * second edge  -> stop repeating dwell cycles
 */
 void handleSparkTestMode() {
   setHotWires(false);
@@ -552,7 +557,7 @@ void handleSparkTestMode() {
     sparkTestPulseActive = true;
 
     if (enableTransitionDebug) {
-      Serial.println("SPARK_TEST_EVENT: Spark pulse started");
+      Serial.println("SPARK_TEST_EVENT: SparkOut dwell cycle started");
     }
   }
 
@@ -563,7 +568,7 @@ void handleSparkTestMode() {
     sparkTestPulseActive = false;
 
     if (enableTransitionDebug) {
-      Serial.println("SPARK_TEST_EVENT: Spark pulse ended");
+      Serial.println("SPARK_TEST_EVENT: SparkOut dwell cycle ended");
     }
   }
 }

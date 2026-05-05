@@ -231,9 +231,9 @@ def build_document():
 
     document.add_heading("3. Hardware and Firmware Baseline", level=1)
     add_bullet(document, "Target hardware: Industrial Shields M-Duino 19R+")
-    add_bullet(document, "Original reference code: M-Duino/ArduinoCode/M-Duino_Original/M-Duino_Original.ino")
-    add_bullet(document, "Current cleaned controller code baseline: M-Duino/ArduinoCode/M_Duino_v002/M_Duino_v002.ino")
-    add_paragraph(document, "The cleaned controller code should be treated as the firmware baseline for app integration because it already includes explicit timing variable names with units, commented sequence logic, named controller states, clearer output/flag separation, and debug-oriented state transition logging.")
+    add_bullet(document, "Original reference code: M-DuinoScripts/M-Duino_Original/M-Duino_Original.ino")
+    add_bullet(document, "Current cleaned controller code baseline: M-DuinoScripts/M_Duino_v005/M_Duino_v005.ino")
+    add_paragraph(document, "The cleaned controller code should be treated as the firmware baseline for app integration because it already includes explicit timing variable names with units, commented sequence logic, named controller states, clearer output/flag separation, debug-oriented state transition logging, spark-test toggle control, and a 30 s spark-test safety timeout.")
 
     document.add_heading("4. Connection and Communication Assumptions", level=1)
     add_bullet(document, "The app connects to the M-Duino controller itself, not directly to the hot-wire power supply, spark hardware, or DAQ hardware.")

@@ -84,3 +84,15 @@ That simulator-only variant uses:
    - `DAQTrig` turns on near the end of the dwell interval
    - both outputs turn off
    - the controller stays locked out until `ARM` and `TRIGGER` are released
+
+### Real hardware note about the trigger control
+
+In the real trigger box, the `Trigger` control may be a maintained switch rather than a momentary pushbutton.
+
+That means:
+
+- leaving `Trigger` active is not a clean reset condition
+- after a completed or failed hydrogen-test cycle, both `ARM` and `TRIGGER` should be returned to the inactive position before the next re-arm
+- if `Trigger` remains active, the ready/armed indication should not be interpreted as a valid clean re-arm state
+
+This note applies to the hydrogen-test reset behavior. In spark-test mode, the armed indication follows `ARM` more directly and does not use the same strict trigger-reset rule.

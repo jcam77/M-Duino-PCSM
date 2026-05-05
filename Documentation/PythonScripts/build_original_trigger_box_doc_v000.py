@@ -279,7 +279,7 @@ def build_document():
         ("Code file", "M-DuinoScripts/M-Duino_Original/M-Duino_Original.ino"),
         ("Document date", str(date.today())),
         ("Focus", "Explain what the original code appears to do and identify the main technical risks."),
-        ("Important note", "This document describes the original sketch, not the cleaned state-machine rewrite in M_Duino_v002.ino."),
+        ("Important note", "This document describes the original sketch, not the later cleaned state-machine review path that currently reaches M_Duino_v005.ino."),
     ]
     for r, (label, value) in enumerate(entries):
         set_cell_text(meta.cell(r, 0), label, bold=True)
@@ -293,13 +293,13 @@ def build_document():
     add_bullet(document, "M-DuinoScripts/M-Duino_Original/M-Duino_Original.ino")
     add_paragraph(document, "Important note:")
     add_bullet(document, "This document describes the original sketch only.")
-    add_bullet(document, "It does not describe the cleaned state-machine rewrite in `M_Duino_v002.ino`.")
+    add_bullet(document, "It does not describe the later cleaned state-machine review path that currently reaches `M_Duino_v005.ino`.")
     add_bullet(document, "The original `.ino` file is the source of truth for the baseline implementation discussed here.")
 
     document.add_heading("3. Relationship to the Later Reviewed Version", level=1)
     add_paragraph(document, "This document describes the original baseline code that was later improved in the reviewed firmware.")
-    add_paragraph(document, "The later reviewed version is:")
-    add_bullet(document, "M-DuinoScripts/M_Duino_v002/M_Duino_v002.ino")
+    add_paragraph(document, "The current reviewed production version is:")
+    add_bullet(document, "M-DuinoScripts/M_Duino_v005/M_Duino_v005.ino")
     add_paragraph(document, "So the intended interpretation is:")
     add_bullet(document, "this document explains the original implementation and its risks")
     add_bullet(document, "the reviewed controller document explains the later improved version")

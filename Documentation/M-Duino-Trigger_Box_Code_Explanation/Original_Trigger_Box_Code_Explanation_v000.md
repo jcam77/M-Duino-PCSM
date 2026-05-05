@@ -20,16 +20,16 @@ This document explains what the original code appears to do, where the main risk
 Important note:
 
 - This document describes the original sketch only.
-- It does not describe the cleaned state-machine rewrite in `M_Duino_v002.ino`.
+- It does not describe the later cleaned state-machine review path that currently reaches `M_Duino_v005.ino`.
 - The original `.ino` file is the source of truth for the baseline implementation discussed here.
 
 ## 3. Relationship to the Later Reviewed Version
 
 This document describes the original baseline code that was later improved in the reviewed firmware.
 
-The later reviewed version is:
+The current reviewed production version is:
 
-- `M-DuinoScripts/M_Duino_v002/M_Duino_v002.ino`
+- `M-DuinoScripts/M_Duino_v005/M_Duino_v005.ino`
 
 So the intended interpretation is:
 

@@ -26,7 +26,7 @@ The revised code is longer than the original because it makes the sequence expli
 
 This explanation refers to the following source files in the repository:
 
-- `M-DuinoScripts/M_Duino_v002/M_Duino_v002.ino`
+- `M-DuinoScripts/M_Duino_v005/M_Duino_v005.ino`
 - `M-DuinoScripts/M-Duino_Original/M-Duino_Original.ino`
 
 Interpretation rule:
@@ -39,9 +39,9 @@ Interpretation rule:
 | Signal                                   | Type            | Purpose            | Meaning in the logic                                                            |
 | ---------------------------------------- | --------------- | ------------------ | ------------------------------------------------------------------------------- |
 | `Arm`                                  | Digital input   | Both modes         | Allows the system to arm. Must remain active during hazardous phases.           |
-| `Trigger`                              | Digital input   | Hydrogen-test mode | Starts the firing sequence after arming. Treated as a momentary start command.  |
+| `Trigger`                              | Digital input   | Hydrogen-test mode | Starts the firing sequence after arming. On the real box this may be a maintained switch rather than a momentary pushbutton. In hydrogen-test mode it must be returned to the inactive position before the next clean re-arm.  |
 | `Mode`                                 | Digital input   | Both modes         | Selects `Spark-test` or `Hydrogen-test` behavior.                           |
-| `ArmLight`                             | Digital output  | Both modes         | Indicates that the system is armed or in an active sequence.                    |
+| `ArmLight`                             | Digital output  | Both modes         | Indicates that the system is armed or in an active sequence. In hydrogen-test mode, the light staying off while `Trigger` remains active after a fired/fail/abort condition is intentional feedback that a clean reset has not yet been completed. In spark-test mode, the light follows `Arm` more directly.                    |
 | `HotWire1`, `HotWire2`, `HotWire3` | Digital outputs | Hydrogen-test mode | Drive the three relay channels that control the external hot-wire power system. |
 | `SparkOut`                             | Digital output  | Both modes         | Commands the ignition stage. In a coil-based setup, this typically defines the dwell / coil-charge interval rather than the exact physical spark duration. |
 | `DAQTrig`                              | Digital output  | Hydrogen-test mode | Sends a timing pulse to the data-acquisition system.                            |
@@ -68,7 +68,7 @@ This naming style makes the timing easier to understand and reduces mistakes whe
 
 ### Why the reviewed script is better than the original on units
 
-The reviewed `M_Duino_v002.ino` is better than the original sketch in how it handles units.
+The reviewed `M_Duino_v005.ino` is better than the original sketch in how it handles units.
 
 The original code used shorter names such as:
 
@@ -94,7 +94,7 @@ This improves:
 
 Important nuance:
 
-- `M_Duino_v002.ino` is clearly better on unit clarity
+- `M_Duino_v005.ino` is clearly better on unit clarity
 - but a few names still need physical interpretation in the documentation
 - the main example is `sparkDwell_us`, which should be understood as coil dwell / ignition-command time, not literal plasma duration at the spark plug
 
@@ -106,6 +106,7 @@ Important nuance:
 | `sparkDwell_us`          | `5,000`      | microseconds | Coil dwell / ignition-command duration before release. In a coil-based system, the physical spark is typically produced when this command goes low. |
 | `daqPulse_us`            | `600`        | microseconds | Width of the DAQ trigger pulse during the final part of the dwell interval. |
 | `sparkTestInterval_us`   | `500,000`    | microseconds | Time between ignition-command cycles in spark-test mode. |
+| `sparkTestMaxRun_us`     | `30,000,000` | microseconds | Maximum continuous spark-test run time before the controller stops spark-test automatically as a safety timeout. |
 | `debounce_us`            | `30,000`     | microseconds | Stable input time required before accepting a switch change. This can introduce up to about `30 ms` of input acceptance delay for a changed switch state. |
 | `serialPrintInterval_us` | `250,000`    | microseconds | Limits how often the serial monitor is updated.               |
 
@@ -181,12 +182,33 @@ Important interpretation note:
 12. The controller enters `stateFired`.
 13. The system remains locked out until both `Arm` and `Trigger` are released.
 
+### Operator reset behavior
+
+If the real `Trigger` control is a maintained switch rather than a momentary pushbutton, the reset/re-arm sequence is intentionally strict:
+
+- after a fired, failed, or aborted cycle, both `Arm` and `Trigger` must be returned to the inactive position
+- if `Trigger` remains active, the controller will not return to a clean ready state
+- the `ArmLight` remaining off in that condition is intentional feedback to the operator
+
+So in practical operator terms, the next hydrogen-test cycle should follow this sequence:
+
+1. `Arm OFF`
+2. `Trigger OFF`
+3. `Arm ON`
+4. `Trigger ON` to start the next run
+
 ### Spark-test mode
 
 - The hot-wire outputs stay off.
 - The DAQ output stays off.
-- If `Arm` is active, the controller generates periodic ignition-command cycles.
+- If `Arm` is active, the controller allows repeating ignition-command cycles after spark-test has been enabled.
+- In the reviewed `v005` logic, `Trigger` acts as a toggle command:
+  - the first clean activation starts repeating spark-test pulses
+  - the next clean activation stops spark-test
+- If spark-test is left running, the controller also stops it automatically after `sparkTestMaxRun_us = 30 s`.
 - If `Arm` is released, the controller turns the spark output off immediately.
+- In spark-test mode, `ArmLight` follows the arm condition more directly and does not use the same strict trigger-reset rule as the hydrogen branch.
+- So if `Arm` is active, the armed indication can be on whether `Trigger` is currently active or inactive.
 
 ## 7. State Machine
 
@@ -212,6 +234,7 @@ Compared with the original short sketch, the reviewed version improves several i
 - The main sequence is explicit and easier to follow.
 - Lockout behavior is deliberate rather than accidental.
 - Unsafe transitions such as releasing `Arm` during the hot-wire or spark phase are handled immediately.
+- Spark-test now has a defined automatic stop after `30 s`, which reduces the risk of leaving the ignition test running unintentionally.
 - Mode changes force the controller back to a safe state.
 
 ## 9. Code Structure
@@ -221,7 +244,7 @@ Compared with the original short sketch, the reviewed version improves several i
 | `setup()`                  | Configures inputs and outputs, starts serial communication, and forces a safe startup state.   |
 | `loop()`                   | Updates inputs, checks for mode changes, runs the appropriate mode handler, and prints status. |
 | `DebouncedInput`           | Filters switch bounce so mechanical inputs behave more reliably.                               |
-| `handleSparkTestMode()`    | Runs ignition-command behavior with a defined interval.                                              |
+| `handleSparkTestMode()`    | Runs spark-test toggle behavior, repeating ignition-command pulses, immediate stop on `Arm` release, and the `30 s` safety timeout. |
 | `handleHydrogenTestMode()` | Runs the main sequence and lockout logic.                                                      |
 | `startMeltingOrSpark()`    | Chooses whether to start the hot-wire stage or jump directly to the ignition-command stage.                         |
 | `startSparkSequence()`     | Forces hot wires off, starts the ignition-command stage, and begins dwell timing.                         |
@@ -234,6 +257,7 @@ Compared with the original short sketch, the reviewed version improves several i
 - The controller requires `Arm` to remain active during the melting and spark phases.
 - The controller requires both `Arm` and `Trigger` to be released before re-arming after a lockout state.
 - The hot-wire outputs are turned off before the ignition-command stage begins.
+- Spark-test stops automatically after `30 s` if the operator does not stop it first.
 
 Important note:
 
