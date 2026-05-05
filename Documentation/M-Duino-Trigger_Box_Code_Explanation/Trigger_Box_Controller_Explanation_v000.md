@@ -106,7 +106,6 @@ Important nuance:
 | `sparkDwell_us`          | `5,000`      | microseconds | Coil dwell / ignition-command duration before release. In a coil-based system, the physical spark is typically produced when this command goes low. |
 | `daqPulse_us`            | `600`        | microseconds | Width of the DAQ trigger pulse during the final part of the dwell interval. |
 | `sparkTestInterval_us`   | `500,000`    | microseconds | Time between ignition-command cycles in spark-test mode. |
-| `sparkTestMaxRun_us`     | `30,000,000` | microseconds | Maximum continuous spark-test run time before the controller stops spark-test automatically as a safety timeout. |
 | `debounce_us`            | `30,000`     | microseconds | Stable input time required before accepting a switch change. This can introduce up to about `30 ms` of input acceptance delay for a changed switch state. |
 | `serialPrintInterval_us` | `250,000`    | microseconds | Limits how often the serial monitor is updated.               |
 
@@ -232,7 +231,6 @@ So in practical operator terms, the next hydrogen-test cycle should follow this 
 - Spark-test runs only while both `Arm` and `Trigger` remain active.
 - If `Trigger` is switched off, all spark-test outputs turn off immediately.
 - If `Arm` is released, all spark-test outputs also turn off immediately.
-- If spark-test is left running continuously, the controller still stops it automatically after `sparkTestMaxRun_us = 30 s`.
 - In spark-test mode, `ArmLight` does not follow `Arm` alone. It is on only while the maintained `Trigger` is also active.
 
 ## 7. State Machine
@@ -259,7 +257,7 @@ Compared with the original short sketch, the reviewed version improves several i
 - The main sequence is explicit and easier to follow.
 - Lockout behavior is deliberate rather than accidental.
 - Unsafe transitions such as releasing `Arm` during the hot-wire phase are handled immediately, and the dwell path itself is kept short and deterministic.
-- Spark-test now matches the maintained trigger hardware more naturally and also has a defined automatic stop after `30 s`.
+- Spark-test now matches the maintained trigger hardware more naturally.
 - Mode changes force the controller back to a safe state.
 - The `v005` serial-induced over-dwell problem is removed by executing the ignition dwell as a print-free blocking section.
 
@@ -270,7 +268,7 @@ Compared with the original short sketch, the reviewed version improves several i
 | `setup()`                  | Configures inputs and outputs, starts serial communication, and forces a safe startup state.   |
 | `loop()`                   | Updates inputs, checks for mode changes, runs the appropriate mode handler, and prints status. |
 | `DebouncedInput`           | Filters switch bounce so mechanical inputs behave more reliably.                               |
-| `handleSparkTestMode()`    | Runs maintained-switch spark-test behavior, repeating ignition-command pulses only while both `Arm` and `Trigger` are active, plus the `30 s` safety timeout. |
+| `handleSparkTestMode()`    | Runs maintained-switch spark-test behavior, repeating ignition-command pulses only while both `Arm` and `Trigger` are active. |
 | `handleHydrogenTestMode()` | Runs the main sequence and lockout logic.                                                      |
 | `startMeltingOrSpark()`    | Chooses whether to start the hot-wire stage or jump directly to the ignition-command stage.                         |
 | `delayMicrosecondsLong()`  | Executes microsecond delays in safe chunks so future longer dwell values do not silently truncate. |
@@ -286,7 +284,6 @@ Compared with the original short sketch, the reviewed version improves several i
 - The controller requires both `Arm` and `Trigger` to be released before re-arming after a lockout state.
 - The hot-wire outputs are turned off before the ignition-command stage begins.
 - In spark-test mode, the outputs stop immediately if either `Arm` or `Trigger` is released.
-- Spark-test stops automatically after `30 s` if the operator does not stop it first.
 - Serial debug is disabled by default in `v006` so the production build does not accidentally stretch a microsecond-scale dwell window.
 
 Important note:
