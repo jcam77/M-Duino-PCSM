@@ -41,10 +41,9 @@
 
   DEBUGGING NOTES
     - This version adds explicit state-transition logging.
-    - Spark-test mode now uses Trigger as a toggle command:
-        * first Trigger activation starts repeating SparkOut dwell cycles
-        * second Trigger activation stops them
-    - Releasing Arm stops spark-test activity immediately.
+    - In spark-test mode, repeating SparkOut dwell cycles run only while
+      both Arm and Trigger remain active.
+    - Releasing either Arm or Trigger stops spark-test activity immediately.
     - The state machine makes debugging easier because the controller
       always has one clear "current state".
     - Open the Serial Monitor at 9600 baud to see:
@@ -78,12 +77,12 @@ const int hotWire3Pin = R0_8;
 
 // Inputs
 const int triggerInputPin = I0_4;
-const int modeInputPin    = I0_5;
-const int armInputPin     = I0_3;
+const int modeInputPin = I0_5;
+const int armInputPin = I0_3;
 
 // Outputs
 const int sparkOutPin = Q0_1;
-const int daqTrigPin  = Q0_0;
+const int daqTrigPin = Q0_0;
 
 
 // ============================================================
@@ -116,9 +115,8 @@ const bool enableSerialDebug = true;
 // Enable detailed messages when the controller changes state.
 const bool enableTransitionDebug = true;
 
-// If true, use shorter timings that are easier to observe during
-// safe bench testing with hazardous hardware disconnected.
-const bool useBenchTestTimings = false;
+// Exact firmware file intended to be running on the controller.
+const char* firmwareScriptName = "M_Duino_v005.ino";
 
 
 // ============================================================
@@ -127,13 +125,11 @@ const bool useBenchTestTimings = false;
 // ============================================================
 
 const unsigned long usPerMs = 1000UL;
-const unsigned long usPerS  = 1000000UL;
+const unsigned long usPerS = 1000000UL;
 
-// Hot-wire ON duration before spark starts.
-// Production example: 10 seconds = 10,000,000 us
-// Bench-test example: 1 second = 1,000,000 us
-const unsigned long hotWireBurn_us =
-  useBenchTestTimings ? (1UL * usPerS) : (10UL * usPerS);
+// Hot-wire ON duration before SparkOut dwell starts.
+// Production example: 20 seconds = 20,000,000 us
+const unsigned long hotWireBurn_us = 20UL * usPerS;
 
 // Total SparkOut dwell / ignition-command duration.
 // Production example: 5000 us = 5 ms
@@ -141,16 +137,18 @@ const unsigned long sparkDwell_us = 5000UL;
 
 // DAQ trigger pulse width.
 // DAQ will be active during the final daqPulse_us of the dwell interval.
+// Production example: 600 us = 0.6 ms
 const unsigned long daqPulse_us = 600UL;
 
 // In spark-test mode, the next SparkOut dwell cycle starts at this interval
 // while spark-test is enabled.
-const unsigned long sparkTestInterval_us =
-  useBenchTestTimings ? (1000UL * usPerMs) : (500UL * usPerMs);
+// Production example: 500,000 us = 0.5 s
+const unsigned long sparkTestInterval_us = 500UL * usPerMs;
 
 // Debounce time for mechanical input switches.
 // A new raw input level must remain unchanged for this full interval
 // before the firmware accepts it as the new stable state.
+// Production example: 30,000 us = 30 ms
 //
 // Practical meaning:
 //   - This can add up to about 30 ms of input acceptance delay.
@@ -160,6 +158,7 @@ const unsigned long sparkTestInterval_us =
 const unsigned long debounce_us = 30UL * usPerMs;
 
 // Serial debug print interval.
+// Production example: 250,000 us = 0.25 s
 const unsigned long serialPrintInterval_us = 250UL * usPerMs;
 
 
@@ -299,7 +298,6 @@ unsigned long lastSparkTestPulse_us = 0;
 
 // Used to detect changes between spark-test mode and hydrogen-test mode
 bool previousSparkTestMode = false;
-bool previousTriggerActive = false;
 
 
 // ============================================================
@@ -473,7 +471,6 @@ void setup() {
 
   // Store the initial mode so startup is not mistaken for a mode change
   previousSparkTestMode = modeInput.active();
-  previousTriggerActive = triggerInput.active();
 
   printStartupConfiguration();
 }
@@ -500,57 +497,45 @@ void updateInputs() {
     - DAQ always OFF
     - If Arm is inactive:
         all outputs are OFF and spark-test is disabled
-    - If Arm is active:
-        each Trigger activation edge toggles the repeating SparkOut sequence
-          * first edge   -> start repeating dwell cycles
-          * second edge  -> stop repeating dwell cycles
+    - If Trigger is inactive:
+        all outputs are OFF and spark-test is disabled
+    - Spark-test runs only while both Arm and Trigger remain active
 */
 void handleSparkTestMode() {
   setHotWires(false);
   setDaqTrigger(false);
 
   unsigned long now_us = micros();
-  bool triggerPressed = triggerInput.active() && !previousTriggerActive;
+  bool triggerActive = triggerInput.active();
 
   if (!armInput.active()) {
-    setArmLight(false);
-    setSpark(false);
+    allOutputsOff();
     sparkTestEnabled = false;
     sparkTestPulseActive = false;
     return;
   }
 
-  setArmLight(true);
+  if (!triggerActive) {
+    allOutputsOff();
+    sparkTestEnabled = false;
+    sparkTestPulseActive = false;
+    return;
+  }
 
-  if (triggerPressed) {
-    sparkTestEnabled = !sparkTestEnabled;
-
-    if (!sparkTestEnabled) {
-      setSpark(false);
-      sparkTestPulseActive = false;
-
-      if (enableTransitionDebug) {
-        Serial.println("SPARK_TEST_EVENT: Spark-test stopped");
-      }
-      return;
-    }
+  if (!sparkTestEnabled) {
+    sparkTestEnabled = true;
 
     // Allow the first pulse to start immediately after enabling.
     lastSparkTestPulse_us = now_us - sparkTestInterval_us;
 
     if (enableTransitionDebug) {
-      Serial.println("SPARK_TEST_EVENT: Spark-test started");
+      Serial.println("SPARK_TEST_EVENT: Spark-test enabled by maintained Trigger");
     }
   }
 
-  if (!sparkTestEnabled) {
-    setSpark(false);
-    sparkTestPulseActive = false;
-    return;
-  }
+  setArmLight(true);
 
-  if (!sparkTestPulseActive &&
-      ((now_us - lastSparkTestPulse_us) >= sparkTestInterval_us)) {
+  if (!sparkTestPulseActive && ((now_us - lastSparkTestPulse_us) >= sparkTestInterval_us)) {
     setSpark(true);
     sparkTestStart_us = now_us;
     lastSparkTestPulse_us = now_us;
@@ -562,8 +547,7 @@ void handleSparkTestMode() {
   }
 
   // End the pulse after sparkDwell_us
-  if (sparkTestPulseActive &&
-      ((now_us - sparkTestStart_us) >= sparkDwell_us)) {
+  if (sparkTestPulseActive && ((now_us - sparkTestStart_us) >= sparkDwell_us)) {
     setSpark(false);
     sparkTestPulseActive = false;
 
@@ -619,8 +603,7 @@ void handleHydrogenTestMode() {
       // Trigger must not already be active before arming
       if (triggerActive) {
         changeState(stateFail, "trigger active before valid arming");
-      }
-      else if (armActive) {
+      } else if (armActive) {
         setArmLight(true);
         changeState(stateArmed, "arm input became active");
       }
@@ -634,8 +617,7 @@ void handleHydrogenTestMode() {
 
       if (!armActive) {
         changeState(stateIdle, "arm released before trigger");
-      }
-      else if (triggerActive) {
+      } else if (triggerActive) {
         startMeltingOrSpark();
       }
       break;
@@ -658,37 +640,39 @@ void handleHydrogenTestMode() {
       }
       break;
 
-    case stateSparkWaitDaq: {
-      // Arm must remain active during spark sequence
-      if (!armStillActive()) {
-        enterSafeLockout(stateAborted, "arm released before DAQ start");
+    case stateSparkWaitDaq:
+      {
+        // Arm must remain active during spark sequence
+        if (!armStillActive()) {
+          enterSafeLockout(stateAborted, "arm released before DAQ start");
+          break;
+        }
+
+        unsigned long elapsed_us = micros() - sparkStart_us;
+
+        if (elapsed_us >= daqStartDelay_us()) {
+          setDaqTrigger(true);
+          changeState(stateSparkWaitEnd, "DAQ trigger started");
+        }
         break;
       }
 
-      unsigned long elapsed_us = micros() - sparkStart_us;
+    case stateSparkWaitEnd:
+      {
+        // Arm must remain active during spark sequence
+        if (!armStillActive()) {
+          enterSafeLockout(stateAborted, "arm released during spark / DAQ");
+          break;
+        }
 
-      if (elapsed_us >= daqStartDelay_us()) {
-        setDaqTrigger(true);
-        changeState(stateSparkWaitEnd, "DAQ trigger started");
-      }
-      break;
-    }
+        unsigned long elapsed_us = micros() - sparkStart_us;
 
-    case stateSparkWaitEnd: {
-      // Arm must remain active during spark sequence
-      if (!armStillActive()) {
-        enterSafeLockout(stateAborted, "arm released during spark / DAQ");
+        if (elapsed_us >= sparkDwell_us) {
+          allOutputsOff();
+          changeState(stateFired, "spark dwell completed");
+        }
         break;
       }
-
-      unsigned long elapsed_us = micros() - sparkStart_us;
-
-      if (elapsed_us >= sparkDwell_us) {
-        allOutputsOff();
-        changeState(stateFired, "spark dwell completed");
-      }
-      break;
-    }
 
     case stateFired:
       allOutputsOff();
@@ -738,11 +722,8 @@ void handleModeChange() {
 
     sparkTestEnabled = false;
     sparkTestPulseActive = false;
-    previousTriggerActive = triggerInput.active();
 
-    changeState(stateIdle, sparkTestMode ?
-      "mode changed to spark-test" :
-      "mode changed to hydrogen-test");
+    changeState(stateIdle, sparkTestMode ? "mode changed to spark-test" : "mode changed to hydrogen-test");
 
     previousSparkTestMode = sparkTestMode;
   }
@@ -755,15 +736,15 @@ void handleModeChange() {
 
 const char* stateName(SystemState state) {
   switch (state) {
-    case stateIdle:         return "IDLE";
-    case stateArmed:        return "ARMED";
-    case stateMelting:      return "MELTING";
+    case stateIdle: return "IDLE";
+    case stateArmed: return "ARMED";
+    case stateMelting: return "MELTING";
     case stateSparkWaitDaq: return "SPARK_WAIT_DAQ";
     case stateSparkWaitEnd: return "SPARK_WAIT_END";
-    case stateFired:        return "FIRED";
-    case stateFail:         return "FAIL";
-    case stateAborted:      return "ABORTED";
-    default:                return "UNKNOWN";
+    case stateFired: return "FIRED";
+    case stateFail: return "FAIL";
+    case stateAborted: return "ABORTED";
+    default: return "UNKNOWN";
   }
 }
 
@@ -803,7 +784,7 @@ void changeState(SystemState newState, const char* reason) {
     - mode logic polarity assumptions
     - relay polarity assumptions
     - current timing values
-    - whether bench-test timings are enabled
+    - the exact timing values in use
 */
 void printStartupConfiguration() {
   if (!enableSerialDebug) {
@@ -811,15 +792,15 @@ void printStartupConfiguration() {
   }
 
   Serial.println("================================================");
-  Serial.println("Trigger Box Controller v004 startup");
+  Serial.println("Trigger Box Controller v005 startup");
+  Serial.print("Firmware script: ");
+  Serial.println(firmwareScriptName);
   Serial.print("Input active HIGH: ");
   Serial.println(inputActiveHigh);
   Serial.print("Output active HIGH: ");
   Serial.println(outputActiveHigh);
   Serial.print("Hot-wire step enabled: ");
   Serial.println(useHotWireStep);
-  Serial.print("Bench-test timings enabled: ");
-  Serial.println(useBenchTestTimings);
   Serial.print("hotWireBurn_us: ");
   Serial.println(hotWireBurn_us);
   Serial.print("sparkDwell_us: ");
@@ -887,11 +868,9 @@ void loop() {
 
   if (modeInput.active()) {
     handleSparkTestMode();
-  }
-  else {
+  } else {
     handleHydrogenTestMode();
   }
 
   printStatusThrottled();
-  previousTriggerActive = triggerInput.active();
 }

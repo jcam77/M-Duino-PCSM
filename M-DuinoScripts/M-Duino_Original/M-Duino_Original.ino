@@ -30,7 +30,7 @@ int dwell = 5000;
 
 int BurnTime = 10;
 
-int Delay = 600;
+int Delay = 500;
 
 int count;
 
@@ -42,7 +42,7 @@ boolean Fail = false;
 
 boolean Fired = false;
 
-boolean HotWire = true;
+boolean HotWire = false;
 
  
 

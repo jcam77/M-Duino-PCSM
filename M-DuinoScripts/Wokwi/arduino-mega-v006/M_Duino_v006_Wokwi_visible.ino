@@ -1,10 +1,10 @@
 /*
-  Wokwi-ready wrapper for the M-Duino Trigger Box Controller v005.
+  Wokwi-ready wrapper for the M-Duino Trigger Box Controller v006.
 
   IMPORTANT
     - This file is for Arduino Mega / Wokwi simulation only.
     - The production source of truth remains:
-      M-DuinoScripts/M_Duino_v005/M_Duino_v005.ino
+      M-DuinoScripts/M_Duino_v006/M_Duino_v006.ino
     - Do not treat this file as the authoritative firmware for the
       real Industrial Shields controller.
 */
@@ -14,7 +14,7 @@
 /*
   ============================================================
   Trigger Box Controller
-  Version: v005
+  Version: v006
   Target: Industrial Shields M-Duino 19R+
   ============================================================
 
@@ -129,7 +129,7 @@ const bool enableSerialDebug = true;
 const bool enableTransitionDebug = true;
 
 // Exact firmware file represented by this simulator wrapper.
-const char* firmwareScriptName = "M_Duino_v005_Wokwi.ino";
+const char* firmwareScriptName = "M_Duino_v006_Wokwi_visible.ino";
 
 
 // ============================================================
@@ -141,19 +141,19 @@ const unsigned long usPerMs = 1000UL;
 const unsigned long usPerS  = 1000000UL;
 
 // Hot-wire ON duration before SparkOut dwell starts.
-const unsigned long hotWireBurn_us = 10UL * usPerS;
+const unsigned long hotWireBurn_us = 300UL * usPerMs;
 
 // Total spark pulse duration.
 // Production example: 5000 us = 5 ms
-const unsigned long sparkDwell_us = 5000UL;
+const unsigned long sparkDwell_us = 500000UL;
 
 // DAQ trigger pulse width.
 // DAQ will be active during the final daqPulse_us of the spark pulse.
-const unsigned long daqPulse_us = 600UL;
+const unsigned long daqPulse_us = 150000UL;
 
 // In spark-test mode, the next spark pulse starts at this interval
 // while spark-test is enabled.
-const unsigned long sparkTestInterval_us = 500UL * usPerMs;
+const unsigned long sparkTestInterval_us = 1000UL * usPerMs;
 
 // Maximum allowed continuous spark-test run time before automatic stop.
 // This is a safety timeout to reduce the risk of leaving spark-test
@@ -819,7 +819,7 @@ void printStartupConfiguration() {
   }
 
   Serial.println("================================================");
-  Serial.println("Trigger Box Controller v005 startup");
+  Serial.println("Trigger Box Controller v006 startup");
   Serial.print("Firmware script: ");
   Serial.println(firmwareScriptName);
   Serial.print("Input active HIGH: ");

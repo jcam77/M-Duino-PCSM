@@ -358,7 +358,7 @@ def build_document():
         ("`Arm`", "Digital input", "Both modes", "Allows the system to arm. Must remain active during hazardous phases."),
         ("`Trigger`", "Digital input", "Hydrogen-test mode", "Starts the firing sequence after arming. On the real box this may be a maintained switch rather than a momentary pushbutton. In hydrogen-test mode it must be returned to the inactive position before the next clean re-arm."),
         ("`Mode`", "Digital input", "Both modes", "Selects `Spark-test` or `Hydrogen-test` behavior."),
-        ("`ArmLight`", "Digital output", "Both modes", "Indicates that the system is armed or in an active sequence. In hydrogen-test mode, the light staying off while `Trigger` remains active after a fired/fail/abort condition is intentional feedback that a clean reset has not yet been completed. In spark-test mode, the light follows `Arm` more directly."),
+        ("`ArmLight`", "Digital output", "Both modes", "Indicates that the system is armed or in an active sequence. In hydrogen-test mode, the light staying off while `Trigger` remains active after a fired/fail/abort condition is intentional feedback that a clean reset has not yet been completed. In spark-test mode, the light turns on only while both `Arm` and `Trigger` are active."),
         ("`HotWire1`, `HotWire2`, `HotWire3`", "Digital outputs", "Hydrogen-test mode", "Drive the three relay channels that control the external hot-wire power system."),
         ("`SparkOut`", "Digital output", "Both modes", "Commands the ignition stage. In a coil-based setup, this typically defines the dwell / coil-charge interval rather than the exact physical spark duration."),
         ("`DAQTrig`", "Digital output", "Hydrogen-test mode", "Sends a timing pulse to the data-acquisition system."),
@@ -415,7 +415,7 @@ def build_document():
     for idx, header in enumerate(["Variable", "Current value", "Unit", "Meaning"]):
         set_cell_text(timing.cell(0, idx), header, bold=True)
     timing_rows = [
-        ("`hotWireBurn_us`", "`10,000,000`", "microseconds", "Keeps the three hot-wire relay outputs on for 10 seconds."),
+        ("`hotWireBurn_us`", "`20,000,000`", "microseconds", "Keeps the three hot-wire relay outputs on for 20 seconds."),
         ("`sparkDwell_us`", "`5,000`", "microseconds", "Coil dwell / ignition-command duration before release. In a coil-based system, the physical spark is typically produced when this command goes low."),
         ("`daqPulse_us`", "`600`", "microseconds", "Width of the DAQ trigger pulse during the final part of the dwell interval."),
         ("`sparkTestInterval_us`", "`500,000`", "microseconds", "Time between ignition-command cycles in spark-test mode."),
@@ -445,13 +445,11 @@ def build_document():
     add_bullet(document, "`useHotWireStep = true`")
     add_bullet(document, "`enableSerialDebug = false`")
     add_bullet(document, "`enableTransitionDebug = false`")
-    add_bullet(document, "`useBenchTestTimings = false`")
     add_paragraph(document, "Interpretation:")
     add_bullet(document, "`useHotWireStep = true` should remain enabled if the real experiment includes the hot-wire stage before ignition.")
     add_bullet(document, "`enableSerialDebug = false` is recommended for real firing because serial printing at `9600` baud can interfere with short timing windows such as `sparkDwell_us = 5000` and `daqPulse_us = 600`.")
     add_bullet(document, "`enableTransitionDebug = false` should also be disabled for the same reason.")
-    add_bullet(document, "`useBenchTestTimings = false` keeps the real timing values instead of the shortened bench/simulator values.")
-    add_paragraph(document, "For bench testing, dry checks, and Wokwi-style logic validation, it is still reasonable to use debug output and shortened timings when needed.")
+    add_paragraph(document, "The main `M_Duino_v005.ino` file now uses one fixed timing set for clarity. If shorter timings are needed for simulator visibility, that should be handled in a clearly separate Wokwi-specific file rather than through a runtime timing flag in the production firmware.")
 
     document.add_paragraph("DAQ output path note")
     add_paragraph(document, "The `DAQTrig` pulse is intentionally short. In the reviewed configuration it is only `600 us`, so the real DAQ trigger path should be verified as a fast electronic output path, not a mechanical relay path.")
@@ -509,14 +507,11 @@ def build_document():
     for item in [
         "The hot-wire outputs stay off.",
         "The DAQ output stays off.",
-        "If `Arm` is active, the controller allows repeating ignition-command cycles after spark-test has been enabled.",
-        "In the reviewed `v005` logic, `Trigger` acts as a toggle command.",
-        "The first clean activation starts repeating spark-test pulses.",
-        "The next clean activation stops spark-test.",
-        "If spark-test is left running, the controller also stops it automatically after `sparkTestMaxRun_us = 30 s`.",
-        "If `Arm` is released, the controller turns the spark output off immediately.",
-        "In spark-test mode, `ArmLight` follows the arm condition more directly and does not use the same strict trigger-reset rule as the hydrogen branch.",
-        "So if `Arm` is active, the armed indication can be on whether `Trigger` is currently active or inactive.",
+        "Spark-test runs only while both `Arm` and `Trigger` remain active.",
+        "If `Trigger` is switched off, all spark-test outputs turn off immediately.",
+        "If `Arm` is released, all spark-test outputs also turn off immediately.",
+        "If spark-test is left running continuously, the controller still stops it automatically after `sparkTestMaxRun_us = 30 s`.",
+        "In spark-test mode, `ArmLight` does not follow `Arm` alone. It is on only while the maintained `Trigger` is also active.",
     ]:
         add_bullet(document, item)
 
@@ -552,7 +547,7 @@ def build_document():
         "The main sequence is explicit and easier to follow.",
         "Lockout behavior is deliberate rather than accidental.",
         "Unsafe transitions such as releasing `Arm` during the hot-wire or spark phase are handled immediately.",
-        "Spark-test now has a defined automatic stop after `30 s`, which reduces the risk of leaving the ignition test running unintentionally.",
+        "Spark-test now matches the maintained trigger hardware more naturally and also has a defined automatic stop after `30 s`.",
         "Mode changes force the controller back to a safe state.",
     ]:
         add_bullet(document, item)
@@ -565,7 +560,7 @@ def build_document():
         ("`setup()`", "Configures inputs and outputs, starts serial communication, and forces a safe startup state."),
         ("`loop()`", "Updates inputs, checks for mode changes, runs the appropriate mode handler, and prints status."),
         ("`DebouncedInput`", "Filters switch bounce so mechanical inputs behave more reliably."),
-        ("`handleSparkTestMode()`", "Runs spark-test toggle behavior, repeating ignition-command pulses, immediate stop on `Arm` release, and the `30 s` safety timeout."),
+        ("`handleSparkTestMode()`", "Runs maintained-switch spark-test behavior, repeating ignition-command pulses only while both `Arm` and `Trigger` are active, plus the `30 s` safety timeout."),
         ("`handleHydrogenTestMode()`", "Runs the main sequence and lockout logic."),
         ("`startMeltingOrSpark()`", "Chooses whether to start the hot-wire stage or jump directly to the ignition-command stage."),
         ("`startSparkSequence()`", "Forces hot wires off, starts the ignition-command stage, and begins dwell timing."),
@@ -584,6 +579,7 @@ def build_document():
         "The controller requires `Arm` to remain active during the melting and spark phases.",
         "The controller requires both `Arm` and `Trigger` to be released before re-arming after a lockout state.",
         "The hot-wire outputs are turned off before the ignition-command stage begins.",
+        "In spark-test mode, the outputs stop immediately if either `Arm` or `Trigger` is released.",
         "Spark-test stops automatically after `30 s` if the operator does not stop it first.",
     ]:
         add_bullet(document, item)

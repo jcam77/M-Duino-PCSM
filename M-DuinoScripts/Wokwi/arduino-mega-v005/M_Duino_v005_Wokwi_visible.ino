@@ -52,10 +52,9 @@
 
   DEBUGGING NOTES
     - This version adds explicit state-transition logging.
-    - Spark-test mode now uses Trigger as a toggle command:
-        * first Trigger press starts repeating spark pulses
-        * second Trigger press stops them
-    - Releasing Arm stops spark-test activity immediately.
+    - In spark-test mode, repeating SparkOut dwell cycles run only while
+      both Arm and Trigger remain active.
+    - Releasing either Arm or Trigger stops spark-test activity immediately.
     - A safety timeout stops spark-test automatically after a
       maximum allowed run time.
     - The state machine makes debugging easier because the controller
@@ -129,9 +128,8 @@ const bool enableSerialDebug = true;
 // Enable detailed messages when the controller changes state.
 const bool enableTransitionDebug = true;
 
-// If true, use shorter timings that are easier to observe during
-// safe bench testing with hazardous hardware disconnected.
-const bool useBenchTestTimings = true;
+// Exact firmware file represented by this simulator wrapper.
+const char* firmwareScriptName = "M_Duino_v005_Wokwi_visible.ino";
 
 
 // ============================================================
@@ -142,11 +140,8 @@ const bool useBenchTestTimings = true;
 const unsigned long usPerMs = 1000UL;
 const unsigned long usPerS  = 1000000UL;
 
-// Hot-wire ON duration before spark starts.
-// Production example: 10 seconds = 10,000,000 us
-// Bench-test example: 1 second = 1,000,000 us
-const unsigned long hotWireBurn_us =
-  useBenchTestTimings ? (300UL * usPerMs) : (10UL * usPerS);
+// Hot-wire ON duration before SparkOut dwell starts.
+const unsigned long hotWireBurn_us = 300UL * usPerMs;
 
 // Total spark pulse duration.
 // Production example: 5000 us = 5 ms
@@ -158,8 +153,7 @@ const unsigned long daqPulse_us = 150000UL;
 
 // In spark-test mode, the next spark pulse starts at this interval
 // while spark-test is enabled.
-const unsigned long sparkTestInterval_us =
-  useBenchTestTimings ? (1000UL * usPerMs) : (500UL * usPerMs);
+const unsigned long sparkTestInterval_us = 1000UL * usPerMs;
 
 // Maximum allowed continuous spark-test run time before automatic stop.
 // This is a safety timeout to reduce the risk of leaving spark-test
@@ -317,7 +311,6 @@ unsigned long sparkTestRunStart_us = 0;
 
 // Used to detect changes between spark-test mode and hydrogen-test mode
 bool previousSparkTestMode = false;
-bool previousTriggerActive = false;
 
 
 // ============================================================
@@ -489,7 +482,6 @@ void setup() {
 
   // Store the initial mode so startup is not mistaken for a mode change
   previousSparkTestMode = modeInput.active();
-  previousTriggerActive = triggerInput.active();
 
   printStartupConfiguration();
 }
@@ -516,10 +508,9 @@ void updateInputs() {
     - DAQ always OFF
     - If Arm is inactive:
         all outputs are OFF and spark-test is disabled
-    - If Arm is active:
-        each Trigger press toggles the repeating spark sequence
-          * first press  -> start repeating pulses
-          * second press -> stop repeating pulses
+    - If Trigger is inactive:
+        all outputs are OFF and spark-test is disabled
+    - Spark-test runs only while both Arm and Trigger remain active
     - If spark-test runs longer than sparkTestMaxRun_us:
         it stops automatically
 */
@@ -528,45 +519,33 @@ void handleSparkTestMode() {
   setDaqTrigger(false);
 
   unsigned long now_us = micros();
-  bool triggerPressed = triggerInput.active() && !previousTriggerActive;
+  bool triggerActive = triggerInput.active();
 
   if (!armInput.active()) {
-    setArmLight(false);
-    setSpark(false);
+    allOutputsOff();
     sparkTestEnabled = false;
     sparkTestPulseActive = false;
     return;
   }
 
-  setArmLight(true);
+  if (!triggerActive) {
+    allOutputsOff();
+    sparkTestEnabled = false;
+    sparkTestPulseActive = false;
+    return;
+  }
 
-  if (triggerPressed) {
-    sparkTestEnabled = !sparkTestEnabled;
-
-    if (!sparkTestEnabled) {
-      setSpark(false);
-      sparkTestPulseActive = false;
-
-      if (enableTransitionDebug) {
-        Serial.println("SPARK_TEST_EVENT: Spark-test stopped");
-      }
-      return;
-    }
-
-    // Allow the first pulse to start immediately after enabling.
+  if (!sparkTestEnabled) {
+    sparkTestEnabled = true;
     sparkTestRunStart_us = now_us;
     lastSparkTestPulse_us = now_us - sparkTestInterval_us;
 
     if (enableTransitionDebug) {
-      Serial.println("SPARK_TEST_EVENT: Spark-test started");
+      Serial.println("SPARK_TEST_EVENT: Spark-test enabled by maintained Trigger");
     }
   }
 
-  if (!sparkTestEnabled) {
-    setSpark(false);
-    sparkTestPulseActive = false;
-    return;
-  }
+  setArmLight(true);
 
   if ((now_us - sparkTestRunStart_us) >= sparkTestMaxRun_us) {
     sparkTestEnabled = false;
@@ -768,7 +747,6 @@ void handleModeChange() {
 
     sparkTestEnabled = false;
     sparkTestPulseActive = false;
-    previousTriggerActive = triggerInput.active();
 
     changeState(stateIdle, sparkTestMode ?
       "mode changed to spark-test" :
@@ -833,7 +811,7 @@ void changeState(SystemState newState, const char* reason) {
     - mode logic polarity assumptions
     - relay polarity assumptions
     - current timing values
-    - whether bench-test timings are enabled
+    - the exact timing values in use
 */
 void printStartupConfiguration() {
   if (!enableSerialDebug) {
@@ -842,14 +820,14 @@ void printStartupConfiguration() {
 
   Serial.println("================================================");
   Serial.println("Trigger Box Controller v005 startup");
+  Serial.print("Firmware script: ");
+  Serial.println(firmwareScriptName);
   Serial.print("Input active HIGH: ");
   Serial.println(inputActiveHigh);
   Serial.print("Output active HIGH: ");
   Serial.println(outputActiveHigh);
   Serial.print("Hot-wire step enabled: ");
   Serial.println(useHotWireStep);
-  Serial.print("Bench-test timings enabled: ");
-  Serial.println(useBenchTestTimings);
   Serial.print("hotWireBurn_us: ");
   Serial.println(hotWireBurn_us);
   Serial.print("sparkDwell_us: ");
@@ -925,5 +903,4 @@ void loop() {
   }
 
   printStatusThrottled();
-  previousTriggerActive = triggerInput.active();
 }

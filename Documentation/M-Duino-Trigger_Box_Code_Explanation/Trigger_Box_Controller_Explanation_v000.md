@@ -26,7 +26,7 @@ The revised code is longer than the original because it makes the sequence expli
 
 This explanation refers to the following source files in the repository:
 
-- `M-DuinoScripts/M_Duino_v005/M_Duino_v005.ino`
+- `M-DuinoScripts/M_Duino_v006/M_Duino_v006.ino`
 - `M-DuinoScripts/M-Duino_Original/M-Duino_Original.ino`
 
 Interpretation rule:
@@ -41,7 +41,7 @@ Interpretation rule:
 | `Arm`                                  | Digital input   | Both modes         | Allows the system to arm. Must remain active during hazardous phases.           |
 | `Trigger`                              | Digital input   | Hydrogen-test mode | Starts the firing sequence after arming. On the real box this may be a maintained switch rather than a momentary pushbutton. In hydrogen-test mode it must be returned to the inactive position before the next clean re-arm.  |
 | `Mode`                                 | Digital input   | Both modes         | Selects `Spark-test` or `Hydrogen-test` behavior.                           |
-| `ArmLight`                             | Digital output  | Both modes         | Indicates that the system is armed or in an active sequence. In hydrogen-test mode, the light staying off while `Trigger` remains active after a fired/fail/abort condition is intentional feedback that a clean reset has not yet been completed. In spark-test mode, the light follows `Arm` more directly.                    |
+| `ArmLight`                             | Digital output  | Both modes         | Indicates that the system is armed or in an active sequence. In hydrogen-test mode, the light staying off while `Trigger` remains active after a fired/fail/abort condition is intentional feedback that a clean reset has not yet been completed. In spark-test mode, the light turns on only while both `Arm` and `Trigger` are active.                    |
 | `HotWire1`, `HotWire2`, `HotWire3` | Digital outputs | Hydrogen-test mode | Drive the three relay channels that control the external hot-wire power system. |
 | `SparkOut`                             | Digital output  | Both modes         | Commands the ignition stage. In a coil-based setup, this typically defines the dwell / coil-charge interval rather than the exact physical spark duration. |
 | `DAQTrig`                              | Digital output  | Hydrogen-test mode | Sends a timing pulse to the data-acquisition system.                            |
@@ -68,7 +68,7 @@ This naming style makes the timing easier to understand and reduces mistakes whe
 
 ### Why the reviewed script is better than the original on units
 
-The reviewed `M_Duino_v005.ino` is better than the original sketch in how it handles units.
+The reviewed `M_Duino_v006.ino` is better than the original sketch in how it handles units.
 
 The original code used shorter names such as:
 
@@ -94,7 +94,7 @@ This improves:
 
 Important nuance:
 
-- `M_Duino_v005.ino` is clearly better on unit clarity
+- `M_Duino_v006.ino` is clearly better on unit clarity
 - but a few names still need physical interpretation in the documentation
 - the main example is `sparkDwell_us`, which should be understood as coil dwell / ignition-command time, not literal plasma duration at the spark plug
 
@@ -102,7 +102,7 @@ Important nuance:
 
 | Variable                   | Current value  | Unit         | Meaning                                                       |
 | -------------------------- | -------------- | ------------ | ------------------------------------------------------------- |
-| `hotWireBurn_us`         | `10,000,000` | microseconds | Keeps the three hot-wire relay outputs on for 10 seconds.     |
+| `hotWireBurn_us`         | `20,000,000` | microseconds | Keeps the three hot-wire relay outputs on for 20 seconds.     |
 | `sparkDwell_us`          | `5,000`      | microseconds | Coil dwell / ignition-command duration before release. In a coil-based system, the physical spark is typically produced when this command goes low. |
 | `daqPulse_us`            | `600`        | microseconds | Width of the DAQ trigger pulse during the final part of the dwell interval. |
 | `sparkTestInterval_us`   | `500,000`    | microseconds | Time between ignition-command cycles in spark-test mode. |
@@ -133,16 +133,44 @@ For a real hydrogen ignition run, the recommended feature configuration is:
 - `useHotWireStep = true`
 - `enableSerialDebug = false`
 - `enableTransitionDebug = false`
-- `useBenchTestTimings = false`
 
 Interpretation:
 
 - `useHotWireStep = true` should remain enabled if the real experiment includes the hot-wire stage before ignition.
 - `enableSerialDebug = false` is recommended for real firing because serial printing at `9600` baud can interfere with short timing windows such as `sparkDwell_us = 5000` and `daqPulse_us = 600`.
 - `enableTransitionDebug = false` should also be disabled for the same reason.
-- `useBenchTestTimings = false` keeps the real timing values instead of the shortened bench/simulator values.
 
-For bench testing, dry checks, and Wokwi-style logic validation, it is still reasonable to use debug output and shortened timings when needed.
+The main `M_Duino_v006.ino` file now uses one fixed timing set for clarity. If shorter timings are needed for simulator visibility, that should be handled in a clearly separate Wokwi-specific file rather than through a runtime timing flag in the production firmware.
+
+### Why `v005` was dangerous and how `v006` fixes it
+
+The most important technical correction between `v005` and `v006` concerns the ignition dwell path.
+
+In `v005`, serial debug output was still tied to state transitions inside the spark dwell sequence. At `9600` baud, each transmitted character takes about `1.04 ms`, and once the UART transmit buffer fills, `Serial.print()` blocks the CPU until enough bytes are sent. That is large enough to completely distort a `5 ms` ignition-command window.
+
+The practical consequence was:
+
+- `SparkOut` could be turned on
+- serial transition text could then block the CPU during the dwell window
+- `DAQTrig` and `SparkOut` turn-off timing could occur far later than intended
+
+This was confirmed by direct oscilloscope measurement: the nominal `5 ms` dwell in `v005` stretched into the `>100 ms` range on the real hardware. That is dangerous for an ignition coil because it can overheat the primary winding and destroy the coil.
+
+`v006` fixes this by moving the actual dwell timing into a single blocking, print-free function:
+
+- `runSparkDwellBlocking()`
+
+In `v006`, the SparkOut / DAQ timing window is executed without any serial printing or loop-level timing jitter in between. State logging happens only before or after the hardware has returned to a safe state.
+
+Important nuance:
+
+- `v006` removes the serial-induced over-dwell problem that was present in `v005`
+- `v006` does **not** mean every possible ignition risk is eliminated
+- it does mean the specific `v005` timing bug caused by debug output in the dwell path has been removed
+
+One remaining implementation note in `v006` was also handled carefully:
+
+- the dwell helper now delays in chunks so it does not rely on a silent 16-bit truncation if a future dwell value is ever increased beyond `65,535 us`
 
 ### DAQ output path note
 
@@ -174,7 +202,7 @@ Important interpretation note:
 4. When `Trigger` is pressed, the controller starts the hot-wire stage if `useHotWireStep = true`.
 5. In `stateMelting`, all three hot-wire relay outputs stay on for `hotWireBurn_us`.
 6. After that delay, the hot-wire outputs turn off and the ignition command stage begins.
-7. In `stateSparkWaitDaq`, `SparkOut` is on and `DAQTrig` is still off.
+7. In `v006`, the actual ignition dwell is executed inside one blocking, print-free helper rather than by loop polling through multiple serial-logged states.
 8. In a coil-based system, this interval is the coil dwell / coil-charge interval.
 9. After `sparkDwell_us - daqPulse_us`, the controller turns `DAQTrig` on.
 10. At the end of `sparkDwell_us`, the controller turns both `SparkOut` and `DAQTrig` off.
@@ -201,14 +229,11 @@ So in practical operator terms, the next hydrogen-test cycle should follow this 
 
 - The hot-wire outputs stay off.
 - The DAQ output stays off.
-- If `Arm` is active, the controller allows repeating ignition-command cycles after spark-test has been enabled.
-- In the reviewed `v005` logic, `Trigger` acts as a toggle command:
-  - the first clean activation starts repeating spark-test pulses
-  - the next clean activation stops spark-test
-- If spark-test is left running, the controller also stops it automatically after `sparkTestMaxRun_us = 30 s`.
-- If `Arm` is released, the controller turns the spark output off immediately.
-- In spark-test mode, `ArmLight` follows the arm condition more directly and does not use the same strict trigger-reset rule as the hydrogen branch.
-- So if `Arm` is active, the armed indication can be on whether `Trigger` is currently active or inactive.
+- Spark-test runs only while both `Arm` and `Trigger` remain active.
+- If `Trigger` is switched off, all spark-test outputs turn off immediately.
+- If `Arm` is released, all spark-test outputs also turn off immediately.
+- If spark-test is left running continuously, the controller still stops it automatically after `sparkTestMaxRun_us = 30 s`.
+- In spark-test mode, `ArmLight` does not follow `Arm` alone. It is on only while the maintained `Trigger` is also active.
 
 ## 7. State Machine
 
@@ -219,8 +244,8 @@ The reviewed version uses a state machine instead of several loosely connected f
 | `stateIdle`         | Safe waiting state with all outputs off.                                                |
 | `stateArmed`        | Arm is active and the controller is waiting for Trigger.                                |
 | `stateMelting`      | The three hot-wire relay outputs are energized.                                         |
-| `stateSparkWaitDaq` | `SparkOut` is active and the controller is waiting for the DAQ start point. In a coil-based system, this corresponds to the dwell / charge interval. |
-| `stateSparkWaitEnd` | `SparkOut` and `DAQTrig` are active and the controller is waiting for the end of the dwell interval. |
+| `stateSparkWaitDaq` | State name retained for sequence terminology. In `v006`, the actual dwell timing is executed inside one blocking helper so debug output cannot stretch the timing window. |
+| `stateSparkWaitEnd` | State name retained for sequence terminology. In `v006`, this does not represent a serial-logged loop wait with outputs still active. |
 | `stateFired`        | The sequence completed successfully. Reset is required before a new cycle.              |
 | `stateFail`         | An invalid start condition occurred, such as Trigger being active before proper arming. |
 | `stateAborted`      | The sequence was interrupted because Arm was released during a hazardous phase.         |
@@ -233,9 +258,10 @@ Compared with the original short sketch, the reviewed version improves several i
 - Timing variables include units in their names.
 - The main sequence is explicit and easier to follow.
 - Lockout behavior is deliberate rather than accidental.
-- Unsafe transitions such as releasing `Arm` during the hot-wire or spark phase are handled immediately.
-- Spark-test now has a defined automatic stop after `30 s`, which reduces the risk of leaving the ignition test running unintentionally.
+- Unsafe transitions such as releasing `Arm` during the hot-wire phase are handled immediately, and the dwell path itself is kept short and deterministic.
+- Spark-test now matches the maintained trigger hardware more naturally and also has a defined automatic stop after `30 s`.
 - Mode changes force the controller back to a safe state.
+- The `v005` serial-induced over-dwell problem is removed by executing the ignition dwell as a print-free blocking section.
 
 ## 9. Code Structure
 
@@ -244,10 +270,12 @@ Compared with the original short sketch, the reviewed version improves several i
 | `setup()`                  | Configures inputs and outputs, starts serial communication, and forces a safe startup state.   |
 | `loop()`                   | Updates inputs, checks for mode changes, runs the appropriate mode handler, and prints status. |
 | `DebouncedInput`           | Filters switch bounce so mechanical inputs behave more reliably.                               |
-| `handleSparkTestMode()`    | Runs spark-test toggle behavior, repeating ignition-command pulses, immediate stop on `Arm` release, and the `30 s` safety timeout. |
+| `handleSparkTestMode()`    | Runs maintained-switch spark-test behavior, repeating ignition-command pulses only while both `Arm` and `Trigger` are active, plus the `30 s` safety timeout. |
 | `handleHydrogenTestMode()` | Runs the main sequence and lockout logic.                                                      |
 | `startMeltingOrSpark()`    | Chooses whether to start the hot-wire stage or jump directly to the ignition-command stage.                         |
-| `startSparkSequence()`     | Forces hot wires off, starts the ignition-command stage, and begins dwell timing.                         |
+| `delayMicrosecondsLong()`  | Executes microsecond delays in safe chunks so future longer dwell values do not silently truncate. |
+| `runSparkDwellBlocking()`  | Executes the actual SparkOut / DAQ timing window without serial prints or loop-level timing jitter. |
+| `runHydrogenSparkSequenceBlocking()` | Starts the blocking ignition-command section and only reports the completed state after outputs are safe. |
 | `allOutputsOff()`          | Provides a reusable safe-off command for all outputs.                                          |
 
 ## 10. Safety Behaviors Built Into the Logic
@@ -257,12 +285,15 @@ Compared with the original short sketch, the reviewed version improves several i
 - The controller requires `Arm` to remain active during the melting and spark phases.
 - The controller requires both `Arm` and `Trigger` to be released before re-arming after a lockout state.
 - The hot-wire outputs are turned off before the ignition-command stage begins.
+- In spark-test mode, the outputs stop immediately if either `Arm` or `Trigger` is released.
 - Spark-test stops automatically after `30 s` if the operator does not stop it first.
+- Serial debug is disabled by default in `v006` so the production build does not accidentally stretch a microsecond-scale dwell window.
 
 Important note:
 
 - This software is not a substitute for a hardwired emergency stop.
 - The emergency stop should physically remove power from the hot-wire supply and the spark system.
+- The blocking dwell approach in `v006` improves timing accuracy, but it also means `Arm` is not re-polled during the very short dwell window itself.
 
 ## 11. Hardware Points to Confirm
 

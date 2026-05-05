@@ -1,10 +1,10 @@
 /*
-  Wokwi-ready wrapper for the M-Duino Trigger Box Controller v005.
+  Wokwi-ready wrapper for the M-Duino Trigger Box Controller v006.
 
   IMPORTANT
     - This file is for Arduino Mega / Wokwi simulation only.
     - The production source of truth remains:
-      M-DuinoScripts/M_Duino_v005/M_Duino_v005.ino
+      M-DuinoScripts/M_Duino_v006/M_Duino_v006.ino
     - Do not treat this file as the authoritative firmware for the
       real Industrial Shields controller.
 */
@@ -14,7 +14,7 @@
 /*
   ============================================================
   Trigger Box Controller
-  Version: v005
+  Version: v006
   Target: Industrial Shields M-Duino 19R+
   ============================================================
 
@@ -129,7 +129,7 @@ const bool enableSerialDebug = true;
 const bool enableTransitionDebug = true;
 
 // Exact firmware file represented by this simulator wrapper.
-const char* firmwareScriptName = "M_Duino_v005_Wokwi.ino";
+const char* firmwareScriptName = "M_Duino_v006_Wokwi.ino";
 
 
 // ============================================================
@@ -819,7 +819,7 @@ void printStartupConfiguration() {
   }
 
   Serial.println("================================================");
-  Serial.println("Trigger Box Controller v005 startup");
+  Serial.println("Trigger Box Controller v006 startup");
   Serial.print("Firmware script: ");
   Serial.println(firmwareScriptName);
   Serial.print("Input active HIGH: ");
