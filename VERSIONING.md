@@ -4,13 +4,13 @@ This is the `M-Duino-PCSM` versioning workflow.
 
 The safe rule is:
 
-- develop on `CODEX-Updates`
+- develop on `AI-Updates`
 - release from `main`
 - create the release tag from `main`
 
 ## Branch Meaning
 
-- `CODEX-Updates`: development branch
+- `AI-Updates`: development branch
 - `main`: stable branch for releases
 
 ## Two Kinds of Versions in This Repo
@@ -36,19 +36,19 @@ Instead, there are two version layers:
 Short version:
 
 ```text
-develop on CODEX-Updates -> test -> commit -> merge into main -> tag on main
+develop on AI-Updates -> test -> commit -> merge into main -> tag on main
 ```
 
 ## Main Workflow
 
 These are the steps:
 
-1. Make changes in `CODEX-Updates`.
-2. Test the changes in `CODEX-Updates`.
-3. If the changes work, commit and push them to `CODEX-Updates`.
+1. Make changes in `AI-Updates`.
+2. Test the changes in `AI-Updates`.
+3. If the changes work, commit and push them to `AI-Updates`.
 4. When you are ready to release, switch to `main`.
 5. Pull the latest `main`.
-6. Merge `CODEX-Updates` into `main`.
+6. Merge `AI-Updates` into `main`.
 7. Push `main`.
 8. Create the release tag from `main`.
 9. Push the tag.
@@ -58,7 +58,7 @@ These are the steps:
 Use this while building features:
 
 ```bash
-git switch CODEX-Updates
+git switch AI-Updates
 git status --short --branch
 ```
 
@@ -67,13 +67,13 @@ Make your changes, test them, then commit and push:
 ```bash
 git add .
 git commit -m "update"
-git push origin CODEX-Updates
+git push origin AI-Updates
 ```
 
 Important:
 
-- do not create the release tag from `CODEX-Updates`
-- do not make the public release from `CODEX-Updates`
+- do not create the release tag from `AI-Updates`
+- do not make the public release from `AI-Updates`
 
 ## Internal File Revision Rules
 
@@ -132,7 +132,7 @@ git restore .
 Why this matters:
 
 - if `git switch main` fails, you stay on the current branch
-- if you stay on `CODEX-Updates`, the release tag can be created from the wrong branch
+- if you stay on `AI-Updates`, the release tag can be created from the wrong branch
 
 ### 2. Switch to `main`
 
@@ -150,13 +150,13 @@ main
 
 If Git prints `Aborting`, stop there. You are not on `main`.
 
-### 3. Merge `CODEX-Updates` into `main`
+### 3. Merge `AI-Updates` into `main`
 
-First switch to `main`, then merge `CODEX-Updates` into it:
+First switch to `main`, then merge `AI-Updates` into it:
 
 ```bash
 git switch main
-git merge CODEX-Updates
+git merge AI-Updates
 git push origin main
 ```
 
@@ -196,37 +196,37 @@ git tag -a mduino-pcsm-v0.1.0 -m "mduino-pcsm-v0.1.0"
 git push origin mduino-pcsm-v0.1.0
 ```
 
-## Full Release Example (CODEX)
+## Full Release Example (AI)
 ```bash
-git switch CODEX-Updates
+git switch AI-Updates
 git status --short --branch
 git diff                          
 git add -p                        
-git commit -m "Fix: remove sparkTestMaxRun_us from documentation"
-git push origin CODEX-Updates
+git commit -m "Fix: Branch renaming"
+git push origin AI-Updates
 git switch main
 git pull --ff-only origin main
-git merge --squash CODEX-Updates
-git commit -m "Release v0.1.7: documentation aligned with v006 code"
+git merge --squash AI-Updates
+git commit -m "Release v0.1.9: Branch renaming"
 git push origin main
-git tag -a mduino-pcsm-v0.1.7 -m "Documentation corrected: removed phantom sparkTestMaxRun_us safety claim"
-git push origin mduino-pcsm-v0.1.7
-git switch CODEX-Updates
+git tag -a mduino-pcsm-v0.1.9 -m "Branch renaming"
+git push origin mduino-pcsm-v0.1.9
+git switch AI-Updates
 git merge main
-git push origin CODEX-Updates
+git push origin AI-Updates
 ```
 ## What To Remember
 
-- develop in `CODEX-Updates`
-- test in `CODEX-Updates`
-- commit to `CODEX-Updates`
+- develop in `AI-Updates`
+- test in `AI-Updates`
+- commit to `AI-Updates`
 - merge into `main`
 - tag on `main`
 - use `_vNNN` for internal file milestones when needed
 
 ## What Not To Do
 
-- do not tag from `CODEX-Updates`
+- do not tag from `AI-Updates`
 - do not continue if `git switch main` fails
 - do not ignore an `Aborting` message from Git
 - do not reuse an existing tag name unless you intentionally want to replace it
