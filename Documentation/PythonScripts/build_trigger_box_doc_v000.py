@@ -343,7 +343,7 @@ def build_document():
 
     document.add_heading("2. Firmware Source Referenced", level=1)
     add_paragraph(document, "This explanation refers to the following source files in the repository:")
-    add_bullet(document, "`M-DuinoScripts/M_Duino_v005/M_Duino_v005.ino`")
+    add_bullet(document, "`M-DuinoScripts/M_Duino_v006/M_Duino_v006.ino`")
     add_bullet(document, "`M-DuinoScripts/M-Duino_Original/M-Duino_Original.ino`")
     add_paragraph(document, "Interpretation rule:")
     add_bullet(document, "the `.ino` files are the source of truth for the actual firmware logic")
@@ -390,7 +390,7 @@ def build_document():
         "This naming style makes the timing easier to understand and reduces mistakes when adjusting values.",
     )
     add_paragraph(document, "Why the reviewed script is better than the original on units")
-    add_paragraph(document, "The reviewed `M_Duino_v005.ino` is better than the original sketch in how it handles units.")
+    add_paragraph(document, "The reviewed `M_Duino_v006.ino` is better than the original sketch in how it handles units.")
     add_paragraph(document, "The original code used shorter names such as:")
     add_bullet(document, "`dwell`")
     add_bullet(document, "`Delay`")
@@ -406,7 +406,7 @@ def build_document():
     add_bullet(document, "discussion with colleagues")
     add_bullet(document, "safety when changing timing values")
     add_paragraph(document, "Important nuance:")
-    add_bullet(document, "`M_Duino_v005.ino` is clearly better on unit clarity")
+    add_bullet(document, "`M_Duino_v006.ino` is clearly better on unit clarity")
     add_bullet(document, "but a few names still need physical interpretation in the documentation")
     add_bullet(document, "the main example is `sparkDwell_us`, which should be understood as coil dwell / ignition-command time, not literal plasma duration at the spark plug")
 
@@ -419,7 +419,6 @@ def build_document():
         ("`sparkDwell_us`", "`5,000`", "microseconds", "Coil dwell / ignition-command duration before release. In a coil-based system, the physical spark is typically produced when this command goes low."),
         ("`daqPulse_us`", "`600`", "microseconds", "Width of the DAQ trigger pulse during the final part of the dwell interval."),
         ("`sparkTestInterval_us`", "`500,000`", "microseconds", "Time between ignition-command cycles in spark-test mode."),
-        ("`sparkTestMaxRun_us`", "`30,000,000`", "microseconds", "Maximum continuous spark-test run time before the controller stops spark-test automatically as a safety timeout."),
         ("`debounce_us`", "`30,000`", "microseconds", "Stable input time required before accepting a switch change. This can introduce up to about `30 ms` of input acceptance delay for a changed switch state."),
         ("`serialPrintInterval_us`", "`250,000`", "microseconds", "Limits how often the serial monitor is updated."),
     ]
@@ -449,7 +448,7 @@ def build_document():
     add_bullet(document, "`useHotWireStep = true` should remain enabled if the real experiment includes the hot-wire stage before ignition.")
     add_bullet(document, "`enableSerialDebug = false` is recommended for real firing because serial printing at `9600` baud can interfere with short timing windows such as `sparkDwell_us = 5000` and `daqPulse_us = 600`.")
     add_bullet(document, "`enableTransitionDebug = false` should also be disabled for the same reason.")
-    add_paragraph(document, "The main `M_Duino_v005.ino` file now uses one fixed timing set for clarity. If shorter timings are needed for simulator visibility, that should be handled in a clearly separate Wokwi-specific file rather than through a runtime timing flag in the production firmware.")
+    add_paragraph(document, "The main `M_Duino_v006.ino` file now uses one fixed timing set for clarity. If shorter timings are needed for simulator visibility, that should be handled in a clearly separate Wokwi-specific file rather than through a runtime timing flag in the production firmware.")
 
     document.add_paragraph("DAQ output path note")
     add_paragraph(document, "The `DAQTrig` pulse is intentionally short. In the reviewed configuration it is only `600 us`, so the real DAQ trigger path should be verified as a fast electronic output path, not a mechanical relay path.")
@@ -484,7 +483,7 @@ def build_document():
         "When `Trigger` is pressed, the controller starts the hot-wire stage if `useHotWireStep = true`.",
         "In `stateMelting`, all three hot-wire relay outputs stay on for `hotWireBurn_us`.",
         "After that delay, the hot-wire outputs turn off and the ignition command stage begins.",
-        "In `stateSparkWaitDaq`, `SparkOut` is on and `DAQTrig` is still off.",
+        "In `v006`, the actual ignition dwell is executed inside one blocking, print-free helper rather than by loop polling through multiple serial-logged states.",
         "In a coil-based system, this interval is the coil dwell / coil-charge interval.",
         "After `sparkDwell_us - daqPulse_us`, the controller turns `DAQTrig` on.",
         "At the end of `sparkDwell_us`, the controller turns both `SparkOut` and `DAQTrig` off.",
@@ -510,7 +509,6 @@ def build_document():
         "Spark-test runs only while both `Arm` and `Trigger` remain active.",
         "If `Trigger` is switched off, all spark-test outputs turn off immediately.",
         "If `Arm` is released, all spark-test outputs also turn off immediately.",
-        "If spark-test is left running continuously, the controller still stops it automatically after `sparkTestMaxRun_us = 30 s`.",
         "In spark-test mode, `ArmLight` does not follow `Arm` alone. It is on only while the maintained `Trigger` is also active.",
     ]:
         add_bullet(document, item)
@@ -527,8 +525,8 @@ def build_document():
         ("`stateIdle`", "Safe waiting state with all outputs off."),
         ("`stateArmed`", "Arm is active and the controller is waiting for Trigger."),
         ("`stateMelting`", "The three hot-wire relay outputs are energized."),
-        ("`stateSparkWaitDaq`", "`SparkOut` is active and the controller is waiting for the DAQ start point. In a coil-based system, this corresponds to the dwell / charge interval."),
-        ("`stateSparkWaitEnd`", "`SparkOut` and `DAQTrig` are active and the controller is waiting for the end of the dwell interval."),
+        ("`stateSparkWaitDaq`", "State name retained for sequence terminology. In `v006`, the actual dwell timing is executed inside one blocking helper so debug output cannot stretch the timing window."),
+        ("`stateSparkWaitEnd`", "State name retained for sequence terminology. In `v006`, this does not represent a serial-logged loop wait with outputs still active."),
         ("`stateFired`", "The sequence completed successfully. Reset is required before a new cycle."),
         ("`stateFail`", "An invalid start condition occurred, such as Trigger being active before proper arming."),
         ("`stateAborted`", "The sequence was interrupted because Arm was released during a hazardous phase."),
@@ -546,9 +544,10 @@ def build_document():
         "Timing variables include units in their names.",
         "The main sequence is explicit and easier to follow.",
         "Lockout behavior is deliberate rather than accidental.",
-        "Unsafe transitions such as releasing `Arm` during the hot-wire or spark phase are handled immediately.",
-        "Spark-test now matches the maintained trigger hardware more naturally and also has a defined automatic stop after `30 s`.",
+        "Unsafe transitions such as releasing `Arm` during the hot-wire phase are handled immediately, and the dwell path itself is kept short and deterministic.",
+        "Spark-test now matches the maintained trigger hardware more naturally.",
         "Mode changes force the controller back to a safe state.",
+        "The `v005` serial-induced over-dwell problem is removed by executing the ignition dwell as a print-free blocking section.",
     ]:
         add_bullet(document, item)
 
@@ -560,10 +559,12 @@ def build_document():
         ("`setup()`", "Configures inputs and outputs, starts serial communication, and forces a safe startup state."),
         ("`loop()`", "Updates inputs, checks for mode changes, runs the appropriate mode handler, and prints status."),
         ("`DebouncedInput`", "Filters switch bounce so mechanical inputs behave more reliably."),
-        ("`handleSparkTestMode()`", "Runs maintained-switch spark-test behavior, repeating ignition-command pulses only while both `Arm` and `Trigger` are active, plus the `30 s` safety timeout."),
+        ("`handleSparkTestMode()`", "Runs maintained-switch spark-test behavior, repeating ignition-command pulses only while both `Arm` and `Trigger` are active."),
         ("`handleHydrogenTestMode()`", "Runs the main sequence and lockout logic."),
         ("`startMeltingOrSpark()`", "Chooses whether to start the hot-wire stage or jump directly to the ignition-command stage."),
-        ("`startSparkSequence()`", "Forces hot wires off, starts the ignition-command stage, and begins dwell timing."),
+        ("`delayMicrosecondsLong()`", "Executes microsecond delays in safe chunks so future longer dwell values do not silently truncate."),
+        ("`runSparkDwellBlocking()`", "Executes the actual SparkOut / DAQ timing window without serial prints or loop-level timing jitter."),
+        ("`runHydrogenSparkSequenceBlocking()`", "Starts the blocking ignition-command section and only reports the completed state after outputs are safe."),
         ("`allOutputsOff()`", "Provides a reusable safe-off command for all outputs."),
     ]
     for row in structure_rows:
@@ -580,12 +581,13 @@ def build_document():
         "The controller requires both `Arm` and `Trigger` to be released before re-arming after a lockout state.",
         "The hot-wire outputs are turned off before the ignition-command stage begins.",
         "In spark-test mode, the outputs stop immediately if either `Arm` or `Trigger` is released.",
-        "Spark-test stops automatically after `30 s` if the operator does not stop it first.",
+        "Serial debug is disabled by default in `v006` so the production build does not accidentally stretch a microsecond-scale dwell window.",
     ]:
         add_bullet(document, item)
     add_paragraph(document, "Important note:")
     add_bullet(document, "This software is not a substitute for a hardwired emergency stop.")
     add_bullet(document, "The emergency stop should physically remove power from the hot-wire supply and the spark system.")
+    add_bullet(document, "The blocking dwell approach in `v006` improves timing accuracy, but it also means `Arm` is not re-polled during the very short dwell window itself.")
 
     document.add_heading("11. Hardware Points to Confirm", level=1)
     add_paragraph(document, "Before using the controller on the real setup, two hardware questions should be confirmed:")

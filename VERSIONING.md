@@ -196,29 +196,25 @@ git tag -a mduino-pcsm-v0.1.0 -m "mduino-pcsm-v0.1.0"
 git push origin mduino-pcsm-v0.1.0
 ```
 
-## Full Release Example
-
+## Full Release Example (CODEX)
 ```bash
 git switch CODEX-Updates
 git status --short --branch
-git add .
-git commit -m "Release-ready changes"
+git diff                          
+git add -p                        
+git commit -m "Fix: remove sparkTestMaxRun_us from documentation"
 git push origin CODEX-Updates
-git status --short --branch
-git restore .
 git switch main
 git pull --ff-only origin main
-git branch --show-current
-git merge CODEX-Updates -m "Merge CODEX-Updates into main"
+git merge --squash CODEX-Updates
+git commit -m "Release v0.1.7: documentation aligned with v006 code"
 git push origin main
-git branch --show-current
-git tag -a mduino-pcsm-v0.1.6 -m "mduino-pcsm-v0.1.6"
-git push origin mduino-pcsm-v0.1.6
+git tag -a mduino-pcsm-v0.1.7 -m "Documentation corrected: removed phantom sparkTestMaxRun_us safety claim"
+git push origin mduino-pcsm-v0.1.7
 git switch CODEX-Updates
 git merge main
 git push origin CODEX-Updates
 ```
-
 ## What To Remember
 
 - develop in `CODEX-Updates`
